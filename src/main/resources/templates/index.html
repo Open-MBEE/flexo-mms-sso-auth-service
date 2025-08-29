@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" 
+      xmlns:th="http://www.thymeleaf.org" 
+      xmlns:sec="http://www.thymeleaf.org/thymeleaf-extras-springsecurity6">
+<head>
+    <title>SSO Microservice</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .nav { margin-bottom: 20px; }
+        .nav a { margin-right: 15px; }
+    </style>
+</head>
+<body>
+    <div class="nav">
+        <a href="/">Home</a>
+        <a sec:authorize="!isAuthenticated()" href="/oauth2/authorization/oidc">Login</a>
+        <a sec:authorize="isAuthenticated()" href="/user">My Profile</a>
+        <a sec:authorize="isAuthenticated()" href="/logout">Logout</a>
+    </div>
+    
+    <h1>Welcome to SSO Microservice</h1>
+    
+    <div sec:authorize="isAuthenticated()">
+        You are logged in as: <span sec:authentication="name"></span>
+    </div>
+    
+    <div sec:authorize="!isAuthenticated()">
+        <p>This is a public page. Please log in to access protected resources.</p>
+        <a href="/oauth2/authorization/oidc" class="btn">Login with SSO</a>
+    </div>
+</body>
+</html>

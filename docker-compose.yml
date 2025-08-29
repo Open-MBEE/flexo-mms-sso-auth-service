@@ -1,0 +1,99 @@
+version: '3.8'
+
+services:
+  sso-microservice:
+    build: .
+    container_name: sso-microservice
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      # You can override the OAuth2 settings with environment variables
+      - SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_OIDC_CLIENT_ID=${OAUTH2_CLIENT_ID}
+      - SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_OIDC_CLIENT_SECRET=${OAUTH2_CLIENT_SECRET}
+      - SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_OIDC_ISSUER_URI=${OAUTH2_ISSUER_URI}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+  oidc-server-mock:
+    container_name: oidc-server-mock
+    image: ghcr.io/soluto/oidc-server-mock:latest
+    ports:
+      - '8080:8080'
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      SERVER_OPTIONS_INLINE: |
+        {
+          "AccessTokenJwtType": "JWT",
+          "Discovery": {
+            "ShowKeySet": true
+          },
+          "Authentication": {
+            "CookieSameSiteMode": "Lax",
+            "CheckSessionCookieSameSiteMode": "Lax"
+          }
+        }
+      LOGIN_OPTIONS_INLINE: |
+        {
+          "AllowRememberLogin": false
+        }
+      LOGOUT_OPTIONS_INLINE: |
+        {
+          "AutomaticRedirectAfterSignOut": true
+        }
+      API_SCOPES_INLINE: |
+        - Name: some-app-scope-1
+        - Name: some-app-scope-2
+      API_RESOURCES_INLINE: |
+        - Name: some-app
+          Scopes:
+            - some-app-scope-1
+            - some-app-scope-2
+      USERS_CONFIGURATION_INLINE: |
+        [
+          {
+            "SubjectId":"1",
+            "Username":"User1",
+            "Password":"pwd",
+            "Claims": [
+              {
+                "Type": "name",
+                "Value": "Sam Tailor",
+                "ValueType": "string"
+              },
+              {
+                "Type": "email",
+                "Value": "sam.tailor@gmail.com",
+                "ValueType": "string"
+              },
+              {
+                "Type": "some-api-resource-claim",
+                "Value": "Sam's Api Resource Custom Claim",
+                "ValueType": "string"
+              },
+              {
+                "Type": "some-api-scope-claim",
+                "Value": "Sam's Api Scope Custom Claim",
+                "ValueType": "string"
+              },
+              {
+                "Type": "some-identity-resource-claim",
+                "Value": "Sam's Identity Resource Custom Claim",
+                "ValueType": "string"
+              }
+            ]
+          }
+        ]
+      CLIENTS_CONFIGURATION_PATH: /tmp/config/clients-config.json
+      ASPNET_SERVICES_OPTIONS_INLINE: |
+        {
+          "ForwardedHeadersOptions": {
+            "ForwardedHeaders" : "All"
+          }
+        }
+    volumes:
+      - ./src/test/resources/oidc-test:/tmp/config:ro

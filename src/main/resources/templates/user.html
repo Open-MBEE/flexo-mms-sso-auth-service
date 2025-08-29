@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" 
+      xmlns:th="http://www.thymeleaf.org" 
+      xmlns:sec="http://www.thymeleaf.org/thymeleaf-extras-springsecurity6">
+<head>
+    <title>User Profile - SSO Microservice</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .nav { margin-bottom: 20px; }
+        .nav a { margin-right: 15px; }
+        pre { background: #f4f4f4; padding: 10px; overflow: auto; }
+    </style>
+</head>
+<body>
+    <div class="nav">
+        <a href="/">Home</a>
+        <a href="/user">My Profile</a>
+        <a href="/logout">Logout</a>
+    </div>
+    
+    <h1>User Profile</h1>
+    
+    <div sec:authorize="isAuthenticated()">
+        <table>
+            <thead>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Username</th>
+                <th>Email</th>
+            </thead>
+            <tbody>
+                <tr>
+                    <td th:text="${userDetails.id}"></td>
+                    <td th:text="${userDetails.name}"></td>
+                    <td th:text="${userDetails.username}"></td>
+                    <td th:text="${userDetails.email}"></td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <h2>ID Token</h2>
+        <pre th:text="${userDetails.idToken}"></pre>
+        
+        <h2>All Claims</h2>
+        <pre th:text="${userDetails.claims}"></pre>
+    </div>
+</body>
+</html>

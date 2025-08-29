@@ -1,0 +1,32 @@
+server:
+  port: 3000
+
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          oidc:
+            client-id: ${OAUTH2_CLIENT_ID:your-client-id}
+            client-secret: ${OAUTH2_CLIENT_SECRET:your-client-secret}
+            scope: openid,profile,email
+        provider:
+          oidc:
+            issuer-uri: ${OAUTH2_ISSUER_URI:http://localhost:8080}
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8080
+
+# Enable and expose health endpoint for Docker health checks
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    org.springframework.security: INFO

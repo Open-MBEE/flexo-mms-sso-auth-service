@@ -1,0 +1,40 @@
+server:
+  port: 3000
+
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          oidc:
+            client-name:
+            client-id: auth-code-mock-client
+            client-secret: auth-code-mock-client-secret
+            authorization-grant-type: authorization_code
+            redirect_uri: http://localhost:3000/login/oauth2/code/oidc
+            scope: openid,profile,email
+            provider: oidc
+        provider:
+          oidc:
+            issuer-uri: http://localhost:8080
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: always
+
+flexo:
+  sso-auth-service:
+    sso_user_id_field: ""
+    jwt_user_id_field: ""
+    group_claims_field: "groups"
+logging:
+  level:
+    org.springframework.security: DEBUG
