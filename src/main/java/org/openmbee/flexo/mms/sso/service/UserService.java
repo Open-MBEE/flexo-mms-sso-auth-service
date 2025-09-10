@@ -4,6 +4,7 @@ import org.openmbee.flexo.mms.sso.entity.ApiKey;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.stereotype.Service;
 
@@ -57,7 +58,7 @@ public class UserService {
      */
     public List<String> getUserGroups(String username) {
         // First, check for a current SSO session with claims containing groups
-        Authentication authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         
         if (authentication != null && authentication.getPrincipal() instanceof OidcUser) {
             OidcUser oidcUser = (OidcUser) authentication.getPrincipal();
