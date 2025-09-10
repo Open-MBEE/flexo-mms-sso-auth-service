@@ -66,6 +66,12 @@ spring:
 
 ## Docker Support
 
+### Pull the Docker Image
+
+```bash
+docker pull openmbee/flexo-mms-sso-auth-service:latest
+```
+
 ### Building the Docker Image
 
 Build the Docker image with:
