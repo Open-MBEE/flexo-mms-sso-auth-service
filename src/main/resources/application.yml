@@ -2,6 +2,14 @@ server:
   port: 3000
 
 spring:
+  datasource:
+    url: jdbc:sqlite:sso-database.db
+    driver-class-name: org.sqlite.JDBC
+  jpa:
+    database-platform: org.hibernate.community.dialect.SQLiteDialect
+    hibernate:
+      ddl-auto: update
+    show-sql: true
   security:
     oauth2:
       client:
@@ -35,6 +43,14 @@ flexo:
     sso_user_id_field: ""
     jwt_user_id_field: ""
     group_claims_field: "groups"
+  sparql:
+    query-url: "http://localhost:3030/ds/sparql"
+    update-url: "http://localhost:3030/ds/update"
+    graph-store-protocol-url: "http://localhost:3030/ds/data"
+    root-context: "http://layer1-service"
+
 logging:
   level:
-    org.springframework.security: DEBUG
+    org.springframework.security: INFO
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE

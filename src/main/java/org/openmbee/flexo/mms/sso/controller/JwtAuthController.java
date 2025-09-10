@@ -16,7 +16,7 @@ public class JwtAuthController {
     @GetMapping("/jwt/info")
     public Map<String, Object> jwtInfo(@AuthenticationPrincipal Jwt jwt) {
         Map<String, Object> info = new HashMap<>();
-        System.out.println(jwt);
+        info.put("username", jwt.getClaimAsString("username"));
         info.put("sub", jwt.getSubject());
         info.put("iss", jwt.getIssuer().toString());
         info.put("exp", jwt.getExpiresAt().toString());

@@ -1,5 +1,9 @@
 package org.openmbee.flexo.mms.sso.config;
 
+import org.openmbee.flexo.mms.sso.security.ApiKeyAuthFilter;
+import org.openmbee.flexo.mms.sso.security.SparqlJwtAuthenticationConverter;
+import org.openmbee.flexo.mms.sso.service.ApiKeyService;
+import org.openmbee.flexo.mms.sso.service.SparqlUserService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -18,6 +22,7 @@ import org.springframework.security.oauth2.jwt.JwtDecoders;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
 import org.springframework.security.config.Customizer;
 
@@ -27,27 +32,58 @@ import org.springframework.security.config.Customizer;
 public class SecurityConfig {
 
     private final ClientRegistrationRepository clientRegistrationRepository;
+    private final ApiKeyService apiKeyService;
+    private final SparqlUserService sparqlUserService;
+    private final SparqlJwtAuthenticationConverter sparqlJwtAuthenticationConverter;
 
-    @Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri:${spring.security.oauth2.client.provider.oidc.issuer-uri}}")
+    @Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri:http://localhost:8080}")
     private String issuerUri;
 
-    public SecurityConfig(ClientRegistrationRepository clientRegistrationRepository) {
+    public SecurityConfig(
+            ClientRegistrationRepository clientRegistrationRepository,
+            ApiKeyService apiKeyService,
+            SparqlUserService sparqlUserService,
+            SparqlJwtAuthenticationConverter sparqlJwtAuthenticationConverter) {
         this.clientRegistrationRepository = clientRegistrationRepository;
+        this.apiKeyService = apiKeyService;
+        this.sparqlUserService = sparqlUserService;
+        this.sparqlJwtAuthenticationConverter = sparqlJwtAuthenticationConverter;
     }
 
-    // API security with JWT
+    @Bean
+    public ApiKeyAuthFilter apiKeyAuthFilter() {
+        return new ApiKeyAuthFilter(apiKeyService);
+    }
+
+    // API security with JWT and API Key
     @Bean
     @Order(1)
     public SecurityFilterChain apiSecurityFilterChain(HttpSecurity http) throws Exception {
         http
-                .securityMatcher("/api/**")  // Apply this configuration only to API endpoints
+                .securityMatcher("/api/**", "/login")
                 .authorizeHttpRequests(authorize -> authorize
                         .anyRequest().authenticated()
                 )
+                .addFilterBefore(apiKeyAuthFilter(), UsernamePasswordAuthenticationFilter.class)
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .jwt(jwt -> jwt
-                                .jwtAuthenticationConverter(jwtAuthenticationConverter())
+                                // Use the custom SPARQL JWT authentication converter instead
+                                .jwtAuthenticationConverter(sparqlJwtAuthenticationConverter)
                         )
+                        // This configuration handles how WWW-Authenticate header is sent
+                        // and how token errors are handled for Authorization Bearer headers
+                        .bearerTokenResolver(request -> {
+                            String header = request.getHeader("Authorization");
+                            if (header != null && header.startsWith("Bearer ")) {
+                                String token = header.substring(7);
+                                // If this is an API key, don't treat it as a JWT
+                                if (apiKeyService.validateApiKey(token).isPresent()) {
+                                    return null;
+                                }
+                                return token;
+                            }
+                            return null;
+                        })
                 )
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
@@ -63,7 +99,7 @@ public class SecurityConfig {
     public SecurityFilterChain webSecurityFilterChain(HttpSecurity http) throws Exception {
         http
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers("/", "/public/**", "/actuator/health").permitAll()
+                        .requestMatchers("/", "/public/**", "/actuator/health", "/check").permitAll()
                         .anyRequest().authenticated()
                 )
                 .oauth2Login(oauth2 -> oauth2
@@ -75,7 +111,7 @@ public class SecurityConfig {
                         .clearAuthentication(true)
                         .deleteCookies("JSESSIONID")
                 )
-                .csrf(Customizer.withDefaults());
+                .csrf(csrf -> csrf.ignoringRequestMatchers("/keys/generate", "/keys/revoke/**"));  // Allow POST requests to these endpoints
 
         return http.build();
     }
@@ -90,12 +126,5 @@ public class SecurityConfig {
     @Bean
     JwtDecoder jwtDecoder() {
         return JwtDecoders.fromIssuerLocation(issuerUri);
-    }
-
-    private Converter<Jwt, AbstractAuthenticationToken> jwtAuthenticationConverter() {
-        JwtAuthenticationConverter jwtConverter = new JwtAuthenticationConverter();
-        JwtGrantedAuthoritiesConverter authoritiesConverter = new JwtGrantedAuthoritiesConverter();
-        jwtConverter.setJwtGrantedAuthoritiesConverter(authoritiesConverter);
-        return jwtConverter;
     }
 }

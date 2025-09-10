@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Key Management - MMS SSO Service</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+    <style>
+        .api-key-value {
+            font-family: monospace;
+            word-break: break-all;
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            border: 1px solid #dee2e6;
+        }
+        .key-expires {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        .key-active {
+            color: #28a745;
+            font-weight: bold;
+        }
+        .alert-new-key {
+            background-color: #e8f5e9;
+            border-color: #c8e6c9;
+        }
+        .card {
+            margin-bottom: 20px;
+        }
+        .last-used {
+            font-size: 0.85em;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <nav class="navbar navbar-expand-lg navbar-light bg-light mb-4">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="/">MMS SSO Service</a>
+                <div class="collapse navbar-collapse">
+                    <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                        <li class="nav-item">
+                            <a class="nav-link" href="/">Home</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/user">My Profile</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link active" href="/keys">My API Keys</a>
+                        </li>
+                    </ul>
+                    <form class="d-flex" action="/logout" method="post">
+                        <button class="btn btn-outline-danger" type="submit">Logout</button>
+                    </form>
+                </div>
+            </div>
+        </nav>
+        
+        <h1 class="mb-4">API Key Management</h1>
+        
+        <!-- New Key Alert -->
+        <div th:if="${newKey != null}" class="alert alert-success alert-new-key" role="alert">
+            <h4 class="alert-heading">New API Key Created!</h4>
+            <p>Your new API key has been generated successfully. Please copy it now as you won't be able to see it again.</p>
+            <hr>
+            <p class="mb-0"><strong>Key:</strong></p>
+            <div class="api-key-value" th:text="${newKey.keyValue}">API_KEY_VALUE</div>
+            
+            <div class="d-flex align-items-center">
+                <button class="btn btn-sm btn-primary me-2" onclick="copyToClipboard(document.querySelector('.api-key-value').textContent)">
+                    Copy to Clipboard
+                </button>
+                <span id="copyMessage" class="text-success" style="display: none;">Copied!</span>
+            </div>
+        </div>
+        
+        <!-- Generate New Key Form -->
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">Generate New API Key</h5>
+            </div>
+            <div class="card-body">
+                <form th:action="@{/keys/generate}" method="post">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Key Name*</label>
+                        <input type="text" class="form-control" id="name" name="name" required
+                               placeholder="Enter a name for this key">
+                    </div>
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="2"
+                                 placeholder="What will this key be used for?"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="validityDays" class="form-label">Validity Period (days)</label>
+                        <input type="number" class="form-control" id="validityDays" name="validityDays" min="1" max="365"
+                               placeholder="Leave blank for non-expiring key">
+                        <div class="form-text">Leave blank for a non-expiring key (not recommended for production use)</div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Generate API Key</button>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Existing Keys List -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Your API Keys</h5>
+            </div>
+            <div class="card-body">
+                <div th:if="${#lists.isEmpty(apiKeys)}" class="alert alert-info">
+                    You don't have any API keys yet. Generate one using the form above.
+                </div>
+                
+                <div th:if="${not #lists.isEmpty(apiKeys)}" class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Description</th>
+                                <th>Created</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr th:each="key : ${apiKeys}">
+                                <td th:text="${key.name}">Key Name</td>
+                                <td th:text="${key.description ?: 'No description'}">Description</td>
+                                <td th:text="${#temporals.format(key.createdAt, 'yyyy-MM-dd HH:mm')}">Created Date</td>
+                                <td>
+                                    <span th:if="${key.expiresAt == null}" class="key-active">Active (No expiration)</span>
+                                    <span th:if="${key.expiresAt != null && !key.expired}" class="key-active">
+                                        Active (Expires: <span th:text="${#temporals.format(key.expiresAt, 'yyyy-MM-dd')}"></span>)
+                                    </span>
+                                    <span th:if="${key.expired}" class="key-expires">Expired</span>
+                                    <div th:if="${key.lastUsedAt != null}" class="last-used">
+                                        Last used: <span th:text="${#temporals.format(key.lastUsedAt, 'yyyy-MM-dd HH:mm')}"></span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <form th:action="@{/keys/revoke/{id}(id=${key.id})}" method="post" onsubmit="return confirm('Are you sure you want to revoke this API key? This action cannot be undone.');">
+                                        <button type="submit" class="btn btn-sm btn-danger">Revoke</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <!-- API Key Usage Instructions -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">How to Use API Keys</h5>
+            </div>
+            <div class="card-body">
+                <p>You can use your API key to authenticate API requests using <strong>one</strong> of the following methods. Both methods are fully supported, so choose whichever works best for your application:</p>
+                
+                <h6>1. Using Authorization Header</h6>
+                <pre><code>Authorization: Bearer YOUR_API_KEY</code></pre>
+                
+                <h6>2. Using X-API-KEY Header</h6>
+                <pre><code>X-API-KEY: YOUR_API_KEY</code></pre>
+                
+                <h6>Example with curl (using method 1):</h6>
+                <pre><code>curl -H "Authorization: Bearer YOUR_API_KEY" https://api.example.com/resource</code></pre>
+                
+                <h6>Example with curl (using method 2):</h6>
+                <pre><code>curl -H "X-API-KEY: YOUR_API_KEY" https://api.example.com/resource</code></pre>
+                
+                <div class="alert alert-warning mt-3">
+                    <strong>Security Notice:</strong> Keep your API keys secure and never share them publicly.
+                    If a key is compromised, revoke it immediately and generate a new one.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                const message = document.getElementById('copyMessage');
+                message.style.display = 'inline';
+                setTimeout(() => {
+                    message.style.display = 'none';
+                }, 3000);
+            }).catch(err => {
+                console.error('Could not copy text: ', err);
+                alert('Failed to copy to clipboard. Please copy the key manually.');
+            });
+        }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

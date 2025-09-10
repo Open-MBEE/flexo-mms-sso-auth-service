@@ -1,5 +1,5 @@
 plugins {
-    id 'org.springframework.boot' version '4.0.0-M1'
+    id 'org.springframework.boot' version '3.5.5'
     id 'io.spring.dependency-management' version '1.1.7'
     id 'java'
 }
@@ -19,14 +19,36 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'org.thymeleaf.extras:thymeleaf-extras-springsecurity6'
 
+    // JWT dependencies
     implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
     implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
     runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
     runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
+    
+    // Auth0 JWT for compatibility with flexo-mms-auth-service
+    implementation 'com.auth0:java-jwt:4.4.0'
+
+    // Spring Data JPA and SQLite
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.xerial:sqlite-jdbc:3.42.0.0'
+    implementation 'org.postgresql:postgresql:42.7.7'
+    implementation 'org.hibernate.orm:hibernate-community-dialects'
+    
+    // Apache Jena for SPARQL client
+    implementation ('org.apache.jena:jena-arq:4.10.0') {
+        exclude group: 'org.apache.httpcomponents.client5', module: 'httpclient5'
+    }
+    implementation ('org.apache.jena:jena-core:4.10.0')
+    implementation ('org.apache.jena:jena-rdfconnection:4.10.0')
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.mockito:mockito-core'
 }
 
 test {
     useJUnitPlatform()
+}
+
+tasks.withType(JavaCompile) {
+    options.compilerArgs << '-Xlint:deprecation'
 }

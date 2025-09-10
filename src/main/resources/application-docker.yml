@@ -1,23 +1,33 @@
 server:
-  port: 3000
+  port: 8080
 
 spring:
+  datasource:
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: update
+    show-sql: true
   security:
     oauth2:
       client:
         registration:
           oidc:
-            client-id: ${OAUTH2_CLIENT_ID:your-client-id}
-            client-secret: ${OAUTH2_CLIENT_SECRET:your-client-secret}
-            scope: openid,profile,email
+            client-name:
+            client-id: auth-code-mock-client
+            client-secret: auth-code-mock-client-secret
+            authorization-grant-type: authorization_code
+            redirect_uri: https://mms5-test.jpl.nasa.gov/login/oauth2/code/oidc
+            scope: openid,profile,email,offline_access
+            provider: oidc
         provider:
           oidc:
-            issuer-uri: ${OAUTH2_ISSUER_URI:http://localhost:8080}
+            issuer-uri: http://localhost:8080
       resourceserver:
         jwt:
-          issuer-uri: http://localhost:8080
+          issuer-uri: https://mms5-test.jpl.nasa.gov/
 
-# Enable and expose health endpoint for Docker health checks
 management:
   endpoints:
     web:
@@ -27,6 +37,19 @@ management:
     health:
       show-details: always
 
+flexo:
+  sso-auth-service:
+    sso_user_id_field: ""
+    jwt_user_id_field: ""
+    group_claims_field: "groups"
+  sparql:
+    query-url: "http://localhost:3030/ds/sparql"
+    update-url: "http://localhost:3030/ds/update"
+    graph-store-protocol-url: "http://localhost:3030/ds/data"
+    root-context: "http://layer1-service"
+
 logging:
   level:
     org.springframework.security: INFO
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE

@@ -11,12 +11,12 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import java.util.Map;
 
 @Controller
-public class HomeController {
+public class MainController {
 
     private final UserService userService;
 
     @Autowired
-    public HomeController(UserService userService) {
+    public MainController(UserService userService) {
         this.userService = userService;
     }
 
