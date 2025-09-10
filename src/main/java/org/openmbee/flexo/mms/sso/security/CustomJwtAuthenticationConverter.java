@@ -1,6 +1,6 @@
 package org.openmbee.flexo.mms.sso.security;
 
-import org.openmbee.flexo.mms.sso.service.SparqlUserService;
+import org.openmbee.flexo.mms.sso.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
@@ -16,23 +16,24 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+/**
+ * Converter that processes JWT tokens and extracts authentication information,
+ * including authorities derived from user claims.
+ */
 @Component
-public class SparqlJwtAuthenticationConverter implements Converter<Jwt, AbstractAuthenticationToken> {
+public class CustomJwtAuthenticationConverter implements Converter<Jwt, AbstractAuthenticationToken> {
 
-    private final SparqlUserService sparqlUserService;
+    private final UserService userService;
 
     @Autowired
-    public SparqlJwtAuthenticationConverter(SparqlUserService sparqlUserService) {
-        this.sparqlUserService = sparqlUserService;
+    public CustomJwtAuthenticationConverter(UserService userService) {
+        this.userService = userService;
     }
 
     @Override
     public AbstractAuthenticationToken convert(Jwt jwt) {
         // Extract user information and authorities from the JWT token
         Collection<GrantedAuthority> authorities = extractAuthorities(jwt);
-        
-        // Add additional authorities or fetch user details from SPARQL if needed
-        // authorities.addAll(sparqlUserService.getUserAuthorities(jwt.getSubject()));
         
         String username = extractUsername(jwt);
         

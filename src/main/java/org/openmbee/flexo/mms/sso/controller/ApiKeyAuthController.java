@@ -5,7 +5,7 @@ import com.auth0.jwt.algorithms.Algorithm;
 import org.openmbee.flexo.mms.sso.entity.ApiKey;
 import org.openmbee.flexo.mms.sso.exception.UnauthorizedException;
 import org.openmbee.flexo.mms.sso.service.ApiKeyService;
-import org.openmbee.flexo.mms.sso.service.SparqlUserService;
+import org.openmbee.flexo.mms.sso.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
@@ -16,7 +16,7 @@ import java.util.*;
 public class ApiKeyAuthController {
 
     private final ApiKeyService apiKeyService;
-    private final SparqlUserService sparqlUserService;
+    private final UserService userService;
 
     @Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri:http://localhost:8080}")
     private String issuerUri;
@@ -28,9 +28,9 @@ public class ApiKeyAuthController {
     private String jwtSecret;
 
     @Autowired
-    public ApiKeyAuthController(ApiKeyService apiKeyService, SparqlUserService sparqlUserService) {
+    public ApiKeyAuthController(ApiKeyService apiKeyService, UserService userService) {
         this.apiKeyService = apiKeyService;
-        this.sparqlUserService = sparqlUserService;
+        this.userService = userService;
     }
 
     @GetMapping("/login")
@@ -52,8 +52,8 @@ public class ApiKeyAuthController {
                 ApiKey key = validatedKey.get();
                 String username = key.getUserId(); // Using userId as username
                 
-                // Get all available groups from SPARQL
-                List<String> availableGroups = sparqlUserService.getUserGroups(username);
+                // Get user groups from SSO claims
+                List<String> availableGroups = userService.getUserGroups(username);
                 
                 // Generate JWT token with username
                 String token = generateJWT(username, availableGroups);

@@ -4,7 +4,9 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.openmbee.flexo.mms.sso.config.TestSecurityConfig;
 import org.openmbee.flexo.mms.sso.controller.MainController;
+import org.openmbee.flexo.mms.sso.entity.ApiKey;
 import org.openmbee.flexo.mms.sso.service.ApiKeyService;
+import org.openmbee.flexo.mms.sso.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -14,6 +16,8 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 
 import static org.hamcrest.Matchers.*;
@@ -36,6 +40,9 @@ public class EndpointsCompatibilityTest {
     
     @MockBean
     private MainController mainController;
+    
+    @MockBean
+    private UserService userService;
 
     @Test
     public void testIndexEndpoint() throws Exception {
@@ -71,5 +78,26 @@ public class EndpointsCompatibilityTest {
         mockMvc.perform(get("/login")
                 .header("Authorization", "Bearer test-api-key"))
             .andExpect(status().isUnauthorized());
+    }
+    
+    @Test
+    public void testLoginEndpointWithValidApiKey() throws Exception {
+        // Create a valid API key
+        ApiKey apiKey = new ApiKey();
+        apiKey.setUserId("testuser");
+        apiKey.setKeyValue("valid-api-key");
+        apiKey.setName("Test Key");
+        
+        // Mock API key validation to return the valid key
+        Mockito.when(apiKeyService.validateApiKey("valid-api-key")).thenReturn(Optional.of(apiKey));
+        
+        // Mock user service to return groups
+        List<String> groups = Arrays.asList("group1", "group2");
+        Mockito.when(userService.getUserGroups("testuser")).thenReturn(groups);
+        
+        mockMvc.perform(get("/login")
+                .header("Authorization", "Bearer valid-api-key"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.token").exists());
     }
 }

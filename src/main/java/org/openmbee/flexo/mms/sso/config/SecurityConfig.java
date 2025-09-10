@@ -1,9 +1,8 @@
 package org.openmbee.flexo.mms.sso.config;
 
 import org.openmbee.flexo.mms.sso.security.ApiKeyAuthFilter;
-import org.openmbee.flexo.mms.sso.security.SparqlJwtAuthenticationConverter;
+import org.openmbee.flexo.mms.sso.security.CustomJwtAuthenticationConverter;
 import org.openmbee.flexo.mms.sso.service.ApiKeyService;
-import org.openmbee.flexo.mms.sso.service.SparqlUserService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -33,8 +32,7 @@ public class SecurityConfig {
 
     private final ClientRegistrationRepository clientRegistrationRepository;
     private final ApiKeyService apiKeyService;
-    private final SparqlUserService sparqlUserService;
-    private final SparqlJwtAuthenticationConverter sparqlJwtAuthenticationConverter;
+    private final CustomJwtAuthenticationConverter customJwtAuthenticationConverter;
 
     @Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri:http://localhost:8080}")
     private String issuerUri;
@@ -42,12 +40,10 @@ public class SecurityConfig {
     public SecurityConfig(
             ClientRegistrationRepository clientRegistrationRepository,
             ApiKeyService apiKeyService,
-            SparqlUserService sparqlUserService,
-            SparqlJwtAuthenticationConverter sparqlJwtAuthenticationConverter) {
+            CustomJwtAuthenticationConverter customJwtAuthenticationConverter) {
         this.clientRegistrationRepository = clientRegistrationRepository;
         this.apiKeyService = apiKeyService;
-        this.sparqlUserService = sparqlUserService;
-        this.sparqlJwtAuthenticationConverter = sparqlJwtAuthenticationConverter;
+        this.customJwtAuthenticationConverter = customJwtAuthenticationConverter;
     }
 
     @Bean
@@ -67,8 +63,8 @@ public class SecurityConfig {
                 .addFilterBefore(apiKeyAuthFilter(), UsernamePasswordAuthenticationFilter.class)
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .jwt(jwt -> jwt
-                                // Use the custom SPARQL JWT authentication converter instead
-                                .jwtAuthenticationConverter(sparqlJwtAuthenticationConverter)
+                                // Use our custom JWT authentication converter
+                                .jwtAuthenticationConverter(customJwtAuthenticationConverter)
                         )
                         // This configuration handles how WWW-Authenticate header is sent
                         // and how token errors are handled for Authorization Bearer headers
