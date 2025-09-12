@@ -1,6 +1,6 @@
 # Flexo MMS SSO Authentication Service
 
-A Spring Boot microservice that provides authentication and authorization services for the Flexo Model Management System (MMS). This service supports OAuth2/OIDC authentication, API key management, and JWT-based authorization.
+A Spring Boot microservice that provides authentication services for the Flexo Model Management System (MMS). This service supports OAuth2/OIDC authentication, API key management, and JWT generation.
 
 ## Features
 
@@ -9,7 +9,6 @@ A Spring Boot microservice that provides authentication and authorization servic
 - JWT token generation and validation
 - User profile information retrieval
 - Database support for both SQLite (development) and PostgreSQL (production)
-- SPARQL integration for user data storage and retrieval
 
 ## Quickstart
 
@@ -46,7 +45,7 @@ The application can be configured through `application.yml`. Key configuration o
 ```yaml
 spring:
   datasource:
-    url: jdbc:sqlite:sso-database.db
+    url: jdbc:sqlite:sso-database.db # NOTE: This requires a writeable mount
     # For PostgreSQL use:
     # url: jdbc:postgresql://localhost:5432/sso_db
     # username: your_username
@@ -154,19 +153,6 @@ Navigate to http://your-service-domain/user in order to manage and create API ke
 
 ```bash
 ./gradlew test
-```
-
-### Using the SPARQL Integration
-
-The service integrates with the Flexo MMS SPARQL endpoints for user data:
-
-```yaml
-flexo:
-  sparql:
-    query-url: "http://flexo-mms-layer1-service/sparql"
-    update-url: "http://flexo-mms-layer1-service/update"
-    graph-store-protocol-url: "http://flexo-mms-layer1-service/data"
-    root-context: "http://your-context"
 ```
 
 ## License
