@@ -147,6 +147,16 @@ flexo:
 
 Navigate to http://your-service-domain/user in order to manage and create API keys
 
+## Advanced Configuration
+
+### Custom Context Path
+It is possible to serve this application on a url prefix, i.e. from a reverse proxy. Simply define the environment variable as follows:
+
+```bash
+export SERVER_SERVLET_CONTEXT_PATH=/sso
+```
+Ensure that the given string begins with a "/" and ends without the trailing "/".
+
 ## Development
 
 ### Running Tests
