@@ -24,22 +24,22 @@
     <div class="container mt-5">
         <nav class="navbar navbar-expand-lg navbar-light bg-light mb-4">
             <div class="container-fluid">
-                <a class="navbar-brand" href="/">MMS SSO Service</a>
+                <a class="navbar-brand" th:href="@{/}">MMS SSO Service</a>
                 <div class="collapse navbar-collapse">
                     <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                         <li class="nav-item">
-                            <a class="nav-link active" href="/">Home</a>
+                            <a class="nav-link active" th:href="@{/}">Home</a>
                         </li>
                         <li class="nav-item" sec:authorize="isAuthenticated()">
-                            <a class="nav-link" href="/user">My Profile</a>
+                            <a class="nav-link" th:href="@{/user}">My Profile</a>
                         </li>
                         <li class="nav-item" sec:authorize="isAuthenticated()">
-                            <a class="nav-link" href="/keys">My API Keys</a>
+                            <a class="nav-link" th:href="@{/keys}">My API Keys</a>
                         </li>
                     </ul>
                     <div class="d-flex">
-                        <a sec:authorize="!isAuthenticated()" href="/oauth2/authorization/oidc" class="btn btn-primary">Login</a>
-                        <form sec:authorize="isAuthenticated()" class="d-flex" action="/logout" method="post">
+                        <a sec:authorize="!isAuthenticated()" th:href="@{/oauth2/authorization/oidc}" class="btn btn-primary">Login</a>
+                        <form sec:authorize="isAuthenticated()" class="d-flex" th:action="@{/logout}" method="post">
                             <button class="btn btn-outline-danger" type="submit">Logout</button>
                         </form>
                     </div>
@@ -56,8 +56,8 @@
             <div class="card-body">
                 <p>You are successfully logged in as: <span class="fw-bold" sec:authentication="name"></span></p>
                 <div class="d-flex gap-2">
-                    <a href="/user" class="btn btn-primary">View Your Profile</a>
-                    <a href="/keys" class="btn btn-secondary">Manage API Keys</a>
+                    <a th:href="@{/user}" class="btn btn-primary">View Your Profile</a>
+                    <a th:href="@{/keys}" class="btn btn-secondary">Manage API Keys</a>
                 </div>
             </div>
         </div>
@@ -68,7 +68,7 @@
             </div>
             <div class="card-body">
                 <p>This is a public page. Please log in to access protected resources and API key management.</p>
-                <a href="/oauth2/authorization/oidc" class="btn btn-primary">Login with SSO</a>
+                <a th:href="@{/oauth2/authorization/oidc}" class="btn btn-primary">Login with SSO</a>
             </div>
         </div>
         

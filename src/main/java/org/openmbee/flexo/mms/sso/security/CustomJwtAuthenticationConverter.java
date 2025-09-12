@@ -2,6 +2,7 @@ package org.openmbee.flexo.mms.sso.security;
 
 import org.openmbee.flexo.mms.sso.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
@@ -25,6 +26,9 @@ public class CustomJwtAuthenticationConverter implements Converter<Jwt, Abstract
 
     private final UserService userService;
 
+    @Value("${flexo.sso-auth-service.sso_user_id_field:preferred_username}")
+    private String jwtUserIdField;
+
     @Autowired
     public CustomJwtAuthenticationConverter(UserService userService) {
         this.userService = userService;
@@ -42,8 +46,8 @@ public class CustomJwtAuthenticationConverter implements Converter<Jwt, Abstract
 
     private String extractUsername(Jwt jwt) {
         // Try to extract standard username claims
-        if (jwt.hasClaim("preferred_username")) {
-            return jwt.getClaimAsString("preferred_username");
+        if (jwt.hasClaim(jwtUserIdField)) {
+            return jwt.getClaimAsString(jwtUserIdField);
         } else if (jwt.hasClaim("email")) {
             return jwt.getClaimAsString("email");
         } else if (jwt.hasClaim("sub")) {

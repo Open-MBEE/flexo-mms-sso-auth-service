@@ -17,6 +17,9 @@ import java.util.Map;
 public class UserService {
 
     private final ApiKeyService apiKeyService;
+
+    @Value("${flexo.sso-auth-service.sso_user_id_field:null}")
+    private String userIdField;
     
     @Value("${flexo.sso-auth-service.group_claims_field:groups}")
     private String groupClaimsField;

@@ -40,20 +40,20 @@
     <div class="container mt-5">
         <nav class="navbar navbar-expand-lg navbar-light bg-light mb-4">
             <div class="container-fluid">
-                <a class="navbar-brand" href="/">MMS SSO Service</a>
+                <a class="navbar-brand" th:href="@{/}">MMS SSO Service</a>
                 <div class="collapse navbar-collapse">
                     <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                         <li class="nav-item">
-                            <a class="nav-link" href="/">Home</a>
+                            <a class="nav-link" th:href="@{/}">Home</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="/user">My Profile</a>
+                            <a class="nav-link" th:href="@{/user}">My Profile</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link active" href="/keys">My API Keys</a>
+                            <a class="nav-link active" th:href="@{/keys}">My API Keys</a>
                         </li>
                     </ul>
-                    <form class="d-flex" action="/logout" method="post">
+                    <form class="d-flex" th:action="@{/logout}" method="post">
                         <button class="btn btn-outline-danger" type="submit">Logout</button>
                     </form>
                 </div>

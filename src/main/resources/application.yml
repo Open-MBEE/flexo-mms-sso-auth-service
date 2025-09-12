@@ -1,12 +1,11 @@
 server:
   port: 3000
-
+  servlet:
+    context-path: /sso
 spring:
   datasource:
     url: jdbc:sqlite:sso-database.db
-    driver-class-name: org.sqlite.JDBC
   jpa:
-    database-platform: org.hibernate.community.dialect.SQLiteDialect
     hibernate:
       ddl-auto: update
     show-sql: true
@@ -19,15 +18,11 @@ spring:
             client-id: auth-code-mock-client
             client-secret: auth-code-mock-client-secret
             authorization-grant-type: authorization_code
-            redirect_uri: http://localhost:3000/login/oauth2/code/oidc
+            redirect_uri: http://localhost:3000/sso/login/oauth2/code/oidc
             scope: openid,profile,email
-            provider: oidc
         provider:
           oidc:
             issuer-uri: http://localhost:8080
-      resourceserver:
-        jwt:
-          issuer-uri: http://localhost:8080
 
 management:
   endpoints:
@@ -43,14 +38,11 @@ flexo:
     sso_user_id_field: ""
     jwt_user_id_field: ""
     group_claims_field: "groups"
-  sparql:
-    query-url: "http://localhost:3030/ds/sparql"
-    update-url: "http://localhost:3030/ds/update"
-    graph-store-protocol-url: "http://localhost:3030/ds/data"
-    root-context: "http://layer1-service"
 
 logging:
   level:
     org.springframework.security: INFO
+    org.springframework.web.filter.CommonsRequestLoggingFilter: INFO
     org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    org.openmbee.flexo.mms.sso: INFO
