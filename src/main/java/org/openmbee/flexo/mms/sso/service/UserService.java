@@ -36,7 +36,7 @@ public class UserService {
 
         if (authentication.getPrincipal() instanceof OidcUser) {
             OidcUser oidcUser = (OidcUser) authentication.getPrincipal();
-            userId = oidcUser.getSubject();
+            userId = oidcUser.getClaims().getOrDefault(userIdField, oidcUser.getSubject()).toString();
             userDetails.put("name", oidcUser.getFullName());
             userDetails.put("email", oidcUser.getEmail());
             userDetails.put("claims", oidcUser.getClaims());
