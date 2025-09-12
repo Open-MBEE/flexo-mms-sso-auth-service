@@ -6,6 +6,7 @@ import org.openmbee.flexo.mms.sso.entity.ApiKey;
 import org.openmbee.flexo.mms.sso.exception.UnauthorizedException;
 import org.openmbee.flexo.mms.sso.service.ApiKeyService;
 import org.openmbee.flexo.mms.sso.service.UserService;
+import org.openmbee.flexo.mms.sso.util.UserIdExtractor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
@@ -17,6 +18,7 @@ public class ApiKeyAuthController {
 
     private final ApiKeyService apiKeyService;
     private final UserService userService;
+    private final UserIdExtractor userIdExtractor;
 
     @Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri:http://localhost:8080}")
     private String issuerUri;
@@ -28,9 +30,10 @@ public class ApiKeyAuthController {
     private String jwtSecret;
 
     @Autowired
-    public ApiKeyAuthController(ApiKeyService apiKeyService, UserService userService) {
+    public ApiKeyAuthController(ApiKeyService apiKeyService, UserService userService, UserIdExtractor userIdExtractor) {
         this.apiKeyService = apiKeyService;
         this.userService = userService;
+        this.userIdExtractor = userIdExtractor;
     }
 
     @GetMapping("/login")
@@ -50,7 +53,7 @@ public class ApiKeyAuthController {
             
             if (validatedKey.isPresent()) {
                 ApiKey key = validatedKey.get();
-                String username = key.getUserId(); // Using userId as username
+                String username = key.getUserId(); // Using userId as username consistently
                 
                 // Get user groups from SSO claims
                 List<String> availableGroups = userService.getUserGroups(username);

@@ -36,8 +36,8 @@ management:
 flexo:
   sso-auth-service:
     sso_user_id_field: "sid"
-    jwt_user_id_field: ""
-    group_claims_field: "groups"
+    jwt_user_id_field: "sid"
+    group_claims_field: "aud"
 
 logging:
   level:

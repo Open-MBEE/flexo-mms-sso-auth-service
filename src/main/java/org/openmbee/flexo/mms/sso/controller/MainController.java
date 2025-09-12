@@ -1,5 +1,7 @@
 package org.openmbee.flexo.mms.sso.controller;
 
+import org.openmbee.flexo.mms.sso.entity.ApiKey;
+import org.openmbee.flexo.mms.sso.service.ApiKeyService;
 import org.openmbee.flexo.mms.sso.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
@@ -8,16 +10,19 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
 
+import java.util.List;
 import java.util.Map;
 
 @Controller
 public class MainController {
 
     private final UserService userService;
+    private final ApiKeyService apiKeyService;
 
     @Autowired
-    public MainController(UserService userService) {
+    public MainController(UserService userService, ApiKeyService apiKeyService) {
         this.userService = userService;
+        this.apiKeyService = apiKeyService;
     }
 
     @GetMapping("/")

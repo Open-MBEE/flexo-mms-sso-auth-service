@@ -1,6 +1,7 @@
 package org.openmbee.flexo.mms.sso.security;
 
 import org.openmbee.flexo.mms.sso.service.UserService;
+import org.openmbee.flexo.mms.sso.util.UserIdExtractor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.convert.converter.Converter;
@@ -25,13 +26,15 @@ import java.util.stream.Collectors;
 public class CustomJwtAuthenticationConverter implements Converter<Jwt, AbstractAuthenticationToken> {
 
     private final UserService userService;
-
-    @Value("${flexo.sso-auth-service.sso_user_id_field:preferred_username}")
-    private String jwtUserIdField;
+    private final UserIdExtractor userIdExtractor;
+    
+    @Value("${flexo.sso-auth-service.group_claims_field:groups}")
+    private static String groupsClaimsField;
 
     @Autowired
-    public CustomJwtAuthenticationConverter(UserService userService) {
+    public CustomJwtAuthenticationConverter(UserService userService, UserIdExtractor userIdExtractor) {
         this.userService = userService;
+        this.userIdExtractor = userIdExtractor;
     }
 
     @Override
@@ -39,32 +42,18 @@ public class CustomJwtAuthenticationConverter implements Converter<Jwt, Abstract
         // Extract user information and authorities from the JWT token
         Collection<GrantedAuthority> authorities = extractAuthorities(jwt);
         
-        String username = extractUsername(jwt);
+        String username = userIdExtractor.extractUserIdFromJwt(jwt);
         
         return new JwtAuthenticationToken(jwt, authorities, username);
     }
 
-    private String extractUsername(Jwt jwt) {
-        // Try to extract standard username claims
-        if (jwt.hasClaim(jwtUserIdField)) {
-            return jwt.getClaimAsString(jwtUserIdField);
-        } else if (jwt.hasClaim("email")) {
-            return jwt.getClaimAsString("email");
-        } else if (jwt.hasClaim("sub")) {
-            return jwt.getSubject();
-        } else {
-            return "unknown";
-        }
-    }
 
     private Collection<GrantedAuthority> extractAuthorities(Jwt jwt) {
         Map<String, Object> claims = jwt.getClaims();
         
         // Look for roles or groups in standard claim locations
-        if (claims.containsKey("roles")) {
-            return getAuthorities(claims, "roles");
-        } else if (claims.containsKey("groups")) {
-            return getAuthorities(claims, "groups");
+        if (claims.containsKey(groupsClaimsField)) {
+            return getAuthorities(claims, groupsClaimsField);
         } else if (claims.containsKey("scope")) {
             String scopes = (String) claims.get("scope");
             return extractScopeAuthorities(scopes);

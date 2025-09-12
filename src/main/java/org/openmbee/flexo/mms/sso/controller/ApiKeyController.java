@@ -2,9 +2,9 @@ package org.openmbee.flexo.mms.sso.controller;
 
 import org.openmbee.flexo.mms.sso.entity.ApiKey;
 import org.openmbee.flexo.mms.sso.service.ApiKeyService;
+import org.openmbee.flexo.mms.sso.util.UserIdExtractor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -16,15 +16,17 @@ import java.util.List;
 public class ApiKeyController {
 
     private final ApiKeyService apiKeyService;
+    private final UserIdExtractor userIdExtractor;
 
     @Autowired
-    public ApiKeyController(ApiKeyService apiKeyService) {
+    public ApiKeyController(ApiKeyService apiKeyService, UserIdExtractor userIdExtractor) {
         this.apiKeyService = apiKeyService;
+        this.userIdExtractor = userIdExtractor;
     }
 
     @GetMapping
     public String listKeys(Authentication authentication, Model model) {
-        String userId = getUserId(authentication);
+        String userId = userIdExtractor.extractUserId(authentication);
         List<ApiKey> apiKeys = apiKeyService.getApiKeysForUser(userId);
         model.addAttribute("apiKeys", apiKeys);
         model.addAttribute("newKey", null); // For newly generated key display
@@ -39,7 +41,7 @@ public class ApiKeyController {
             @RequestParam(value = "validityDays", required = false) Integer validityDays,
             Model model) {
 
-        String userId = getUserId(authentication);
+        String userId = userIdExtractor.extractUserId(authentication);
         ApiKey newKey = apiKeyService.generateApiKey(userId, name, description, validityDays);
 
         List<ApiKey> apiKeys = apiKeyService.getApiKeysForUser(userId);
@@ -51,16 +53,9 @@ public class ApiKeyController {
 
     @PostMapping("/revoke/{keyId}")
     public String revokeKey(Authentication authentication, @PathVariable Long keyId) {
-        String userId = getUserId(authentication);
+        String userId = userIdExtractor.extractUserId(authentication);
         apiKeyService.revokeApiKey(userId, keyId);
         return "redirect:/keys";
     }
 
-    private String getUserId(Authentication authentication) {
-        if (authentication.getPrincipal() instanceof OidcUser) {
-            OidcUser oidcUser = (OidcUser) authentication.getPrincipal();
-            return oidcUser.getSubject();
-        }
-        return authentication.getName();
-    }
 }
