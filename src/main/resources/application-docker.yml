@@ -17,7 +17,7 @@ spring:
             client-id: auth-code-mock-client
             client-secret: auth-code-mock-client-secret
             authorization-grant-type: authorization_code
-            redirect_uri: https://mms5-test.jpl.nasa.gov/login/oauth2/code/oidc
+            redirect_uri: https://mms5.openmbee.org/sso/login/oauth2/code/oidc
             scope: openid,profile,email,offline_access
             provider: oidc
         provider:
@@ -25,7 +25,7 @@ spring:
             issuer-uri: http://localhost:8080
       resourceserver:
         jwt:
-          issuer-uri: https://mms5-test.jpl.nasa.gov/
+          issuer-uri: https://localhost:8080
 
 management:
   endpoints:
