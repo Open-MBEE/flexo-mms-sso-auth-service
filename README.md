@@ -103,6 +103,8 @@ docker run -p 8080:8080 \
   -e SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_OIDC_CLIENT_ID=your-client-id \
   -e SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_OIDC_CLIENT_SECRET=your-client-secret \
   -e SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_OIDC_ISSUER_URI=https://your-identity-provider/ \
+  -e FLEXO_SSO_AUTH_SERVICE_SSO_USER_ID_FIELD: username \
+  -e FLEXO_SSO_AUTH_SERVICE_SSO_GROUP_CLAIMS_FIELD: groups \
   flexo-mms-sso-auth-service
 ```
 
@@ -130,7 +132,7 @@ flexo:
 ```
 
 - `sso_user_id_field`: Field in the ID token used as the primary user identifier
-- `jwt_user_id_field`: Field to use as the username in issued JWTs
+- `jwt_user_id_field`: Field to use as the username in issued JWTs (Typically the same as sso_user_id_field)
 - `group_claims_field`: Field containing user groups/roles
 
 ## API Endpoints
@@ -144,9 +146,7 @@ flexo:
 
 ### API Key Management
 
-- `GET /api-keys`: Web interface for API key management
-- `POST /api-keys/create`: Creates a new API key
-- `POST /api-keys/{id}/delete`: Deletes an existing API key
+Navigate to http://your-service-domain/user in order to manage and create API keys
 
 ## Development
 
