@@ -44,6 +44,7 @@ jwt:
   audience: ${JWT_AUDIENCE:jwt-audience}
   realm: ${JWT_REALM:Flexo MMS Microservices}
   secret: ${JWT_SECRET:somethingreallyreallylong}
+  duration: ${JWT_DURATION:86400000}
 
 logging:
   level:
