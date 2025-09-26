@@ -40,7 +40,7 @@ flexo:
     group_claims_field: "groups"
 
 jwt:
-  domain: ${JWT_DOMAIN:https://jwt-provider-domain/}
+  domain: ${JWT_DOMAIN:https://localhost:8080}
   audience: ${JWT_AUDIENCE:jwt-audience}
   realm: ${JWT_REALM:Flexo MMS Microservices}
   secret: ${JWT_SECRET:somethingreallyreallylong}
