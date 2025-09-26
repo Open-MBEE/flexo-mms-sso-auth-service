@@ -23,9 +23,6 @@ spring:
         provider:
           oidc:
             issuer-uri: http://localhost:8080
-      resourceserver:
-        jwt:
-          issuer-uri: https://localhost:8080
 
 management:
   endpoints:
@@ -41,11 +38,13 @@ flexo:
     sso_user_id_field: ""
     jwt_user_id_field: ""
     group_claims_field: "groups"
-  sparql:
-    query-url: "http://localhost:3030/ds/sparql"
-    update-url: "http://localhost:3030/ds/update"
-    graph-store-protocol-url: "http://localhost:3030/ds/data"
-    root-context: "http://layer1-service"
+
+jwt:
+  domain: ${JWT_DOMAIN:https://jwt-provider-domain/}
+  audience: ${JWT_AUDIENCE:jwt-audience}
+  realm: ${JWT_REALM:Flexo MMS Microservices}
+  secret: ${JWT_SECRET:somethingreallyreallylong}
+  duration: ${JWT_DURATION:86400000}
 
 logging:
   level:

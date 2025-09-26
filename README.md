@@ -62,7 +62,7 @@ spring:
           oidc:
             issuer-uri: https://your-identity-provider/
 ```
-**_NOTE:_** In all configuration options are mapped to environment variables that replace all special characters with underscore ("_"). For instance, `flexo.sso-auth-service.sso_user_id_field` would map to the environment variable `FLEXO_SSO_AUTH_SERVICE_SSO_USER_ID_FIELD`.
+**_NOTE:_** All configuration options are mapped to environment variables that replace all special characters with underscore ("_"). For instance, `flexo.sso-auth-service.sso_user_id_field` would map to the environment variable `FLEXO_SSO_AUTH_SERVICE_SSO_USER_ID_FIELD`.
 
 ## Docker Support
 
@@ -130,7 +130,7 @@ flexo:
     jwt_user_id_field: "preferred_username"
     group_claims_field: "groups"
 ```
-**_NOTE:_** In all configuration options are mapped to environment variables that replace all special characters with underscore ("_"). For instance, `flexo.sso-auth-service.sso_user_id_field` would map to the environment variable `FLEXO_SSO_AUTH_SERVICE_SSO_USER_ID_FIELD`.
+**_NOTE:_** All configuration options are mapped to environment variables that replace all special characters with underscore ("_"). For instance, `flexo.sso-auth-service.sso_user_id_field` would map to the environment variable `FLEXO_SSO_AUTH_SERVICE_SSO_USER_ID_FIELD`.
 
 - `sso_user_id_field`: Field in the ID token used as the primary user identifier
 - `jwt_user_id_field`: Field to use as the username in issued JWTs (Typically the same as sso_user_id_field)

@@ -37,7 +37,14 @@ flexo:
   sso-auth-service:
     sso_user_id_field: "sid"
     jwt_user_id_field: "sid"
-    group_claims_field: "aud"
+    group_claims_field: "groups"
+
+jwt:
+  domain: ${JWT_DOMAIN:https://localhost:8080}
+  audience: ${JWT_AUDIENCE:jwt-audience}
+  realm: ${JWT_REALM:Flexo MMS Microservices}
+  secret: ${JWT_SECRET:somethingreallyreallylong}
+  duration: ${JWT_DURATION:86400000}
 
 logging:
   level:

@@ -34,7 +34,7 @@ public class SecurityConfig {
     private final ApiKeyService apiKeyService;
     private final CustomJwtAuthenticationConverter customJwtAuthenticationConverter;
 
-    @Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri:http://localhost:8080}")
+    @Value("${jwt.domain:http://localhost:8080}")
     private String issuerUri;
 
     public SecurityConfig(

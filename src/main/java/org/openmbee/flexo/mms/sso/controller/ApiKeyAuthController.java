@@ -20,7 +20,7 @@ public class ApiKeyAuthController {
     private final UserService userService;
     private final UserIdExtractor userIdExtractor;
 
-    @Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri:http://localhost:8080}")
+    @Value("${jwt.domain:http://localhost:8080}")
     private String issuerUri;
 
     @Value("${jwt.audience:flexo-mms-api}")
@@ -28,6 +28,9 @@ public class ApiKeyAuthController {
 
     @Value("${jwt.secret:flexo-mms-secret}")
     private String jwtSecret;
+
+    @Value("${jwt.duration:86400000}")
+    private int jwtDurationMilliseconds;
 
     @Autowired
     public ApiKeyAuthController(ApiKeyService apiKeyService, UserService userService, UserIdExtractor userIdExtractor) {
@@ -71,7 +74,7 @@ public class ApiKeyAuthController {
     }
     
     private String generateJWT(String username, List<String> groups) {
-        Date expires = new Date(System.currentTimeMillis() + (1 * 24 * 60 * 60 * 1000)); // 1 day
+        Date expires = new Date(System.currentTimeMillis() + (jwtDurationMilliseconds)); // 1 day
         
         return JWT.create()
             .withAudience(jwtAudience)
