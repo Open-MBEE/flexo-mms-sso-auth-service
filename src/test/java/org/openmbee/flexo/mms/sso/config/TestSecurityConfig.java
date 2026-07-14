@@ -9,11 +9,8 @@ import org.springframework.security.oauth2.client.registration.ClientRegistratio
 import org.springframework.security.oauth2.client.registration.InMemoryClientRegistrationRepository;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
-import org.springframework.security.oauth2.jwt.JwtDecoder;
 
 import java.util.Collections;
-
-import static org.mockito.Mockito.mock;
 
 @TestConfiguration
 @Profile("test")
@@ -40,9 +37,7 @@ public class TestSecurityConfig {
         ));
     }
 
-    @Bean
-    @Primary
-    public JwtDecoder jwtDecoder() {
-        return mock(JwtDecoder.class);
-    }
+    // note: no JwtDecoder bean here — tests @MockBean it, which replaces the
+    // one declared by SecurityConfig (a second definition under the same bean
+    // name would fail context startup with bean-definition overriding disabled)
 }

@@ -38,6 +38,27 @@ flexo:
     sso_user_id_field: "sid"
     jwt_user_id_field: "sid"
     group_claims_field: "groups"
+    # IdP group names matching this pattern (named groups: org, role) encode org membership;
+    # empty disables org-group parsing. Example:
+    # org_group_pattern: "^flexo-(?<org>[a-z0-9-]{3,32})-(?<role>admin|contributor|reader)$"
+    org_group_pattern: ${FLEXO_ORG_GROUP_PATTERN:}
+    # issuer accepted for /token subject_token exchange; defaults to the OIDC login provider
+    idp_issuer_uri: ${FLEXO_IDP_ISSUER_URI:${spring.security.oauth2.client.provider.oidc.issuer-uri:}}
+    # optional audience the subject_token must carry (empty disables the check)
+    idp_audience: ${FLEXO_IDP_AUDIENCE:}
+    provisioning:
+      # auto-create layer1 orgs/groups/policies for org-encoding groups (create-only, never overwrites)
+      enabled: ${FLEXO_PROVISIONING_ENABLED:false}
+      # network URL of the layer1 service
+      layer1_url: ${FLEXO_PROVISIONING_LAYER1_URL:}
+      # layer1's FLEXO_MMS_ROOT_CONTEXT for IRI construction (defaults to layer1_url)
+      root_context: ${FLEXO_PROVISIONING_ROOT_CONTEXT:}
+      cache_ttl_seconds: ${FLEXO_PROVISIONING_CACHE_TTL_SECONDS:3600}
+      service_username: ${FLEXO_PROVISIONING_SERVICE_USERNAME:sso-provisioner}
+      # must match the mms:id of the bootstrap SuperAdmins group in cluster.trig
+      super_admins_group_id: ${FLEXO_PROVISIONING_SUPER_ADMINS_GROUP_ID:super_admins}
+      # role tier -> layer1 Role names; tiers ';'-separated, tier:roles ':'-separated (see ProvisioningService)
+      # role_map: "admin:AdminOrg ...;contributor:...;reader:..."
 
 jwt:
   domain: ${JWT_DOMAIN:https://localhost:8080}
@@ -45,6 +66,17 @@ jwt:
   realm: ${JWT_REALM:Flexo MMS Microservices}
   secret: ${JWT_SECRET:somethingreallyreallylong}
   duration: ${JWT_DURATION:86400000}
+  # short-lived access tokens issued by POST /token (1 hour)
+  access_duration: ${JWT_ACCESS_DURATION:3600000}
+  # rotation window per refresh token (1 hour)
+  refresh_duration: ${JWT_REFRESH_DURATION:3600000}
+  # hard cap on a refresh chain (8 hours)
+  refresh_absolute_duration: ${JWT_REFRESH_ABSOLUTE_DURATION:28800000}
+  # HS256 (legacy shared secret, default) or RS256 (asymmetric; public key served at /.well-known/jwks.json)
+  algorithm: ${JWT_ALGORITHM:HS256}
+  rsa:
+    # PKCS#8 PEM private key; if empty while algorithm=RS256, an ephemeral keypair is generated
+    private_key: ${JWT_RSA_PRIVATE_KEY:}
 
 logging:
   level:
