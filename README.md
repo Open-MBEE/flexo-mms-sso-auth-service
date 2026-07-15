@@ -149,6 +149,50 @@ flexo:
 
 Navigate to http://your-service-domain/user in order to manage and create API keys
 
+## Multi-Org Support
+
+### Token Exchange (`POST /token`)
+
+An RFC 8693-shaped endpoint for exchanging an IdP-issued token for a short-lived layer1 JWT — e.g. from a JupyterHub `pre_spawn_start` hook:
+
+```bash
+curl -X POST http://your-service-domain/token \
+  -d grant_type=urn:ietf:params:oauth:grant-type:token-exchange \
+  -d subject_token_type=urn:ietf:params:oauth:token-type:access_token \
+  -d subject_token=$IDP_ACCESS_TOKEN
+# → { access_token, token_type, expires_in, refresh_token }
+```
+
+Long-running sessions renew with the rotating refresh token (reuse of a rotated token revokes the whole chain):
+
+```bash
+curl -X POST http://your-service-domain/token \
+  -d grant_type=refresh_token \
+  -d refresh_token=$REFRESH_TOKEN
+```
+
+Relevant settings: `flexo.sso-auth-service.idp_issuer_uri`, `idp_audience`, `jwt.access_duration`, `jwt.refresh_duration`, `jwt.refresh_absolute_duration`.
+
+### Automatic Org / Policy Provisioning
+
+IdP group names matching `flexo.sso-auth-service.org_group_pattern` (a regex with named capture groups `org` and `role`) drive idempotent, create-only provisioning of the org, group, and an org-scoped policy in layer1 at token issuance:
+
+```yaml
+flexo:
+  sso-auth-service:
+    org_group_pattern: "^flexo-(?<org>[a-z0-9-]{3,32})-(?<role>admin|contributor|reader)$"
+    provisioning:
+      enabled: true
+      layer1_url: http://layer1-service:8080
+      root_context: http://layer1-service  # layer1's FLEXO_MMS_ROOT_CONTEXT
+```
+
+A user in IdP group `flexo-acme-admin` gets org `acme` created (if absent) with an `AdminOrg`-tier policy bound to that group. Existing resources are never overwritten (`If-None-Match: *`). Role tiers map to layer1 roles via `provisioning.role_map`.
+
+### RS256 / JWKS Signing
+
+Set `jwt.algorithm: RS256` (and provide `jwt.rsa.private_key` as PKCS#8 PEM) to sign tokens asymmetrically. The public key is served at `/.well-known/jwks.json` for layer1 to verify against, removing the need for a shared HMAC secret. Default remains HS256 for backward compatibility.
+
 ## Advanced Configuration
 
 ### Custom Context Path

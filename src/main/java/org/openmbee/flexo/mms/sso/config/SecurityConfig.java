@@ -95,7 +95,9 @@ public class SecurityConfig {
     public SecurityFilterChain webSecurityFilterChain(HttpSecurity http) throws Exception {
         http
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers("/", "/public/**", "/actuator/health", "/check").permitAll()
+                        // /token authenticates via its grant (subject_token or refresh_token);
+                        // /.well-known/jwks.json must be publicly readable by verifiers (layer1)
+                        .requestMatchers("/", "/public/**", "/actuator/health", "/check", "/token", "/.well-known/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .oauth2Login(oauth2 -> oauth2
@@ -107,7 +109,7 @@ public class SecurityConfig {
                         .clearAuthentication(true)
                         .deleteCookies("JSESSIONID")
                 )
-                .csrf(csrf -> csrf.ignoringRequestMatchers("/keys/generate", "/keys/revoke/**"));  // Allow POST requests to these endpoints
+                .csrf(csrf -> csrf.ignoringRequestMatchers("/keys/generate", "/keys/revoke/**", "/token"));  // Allow POST requests to these endpoints
 
         return http.build();
     }
