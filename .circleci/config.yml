@@ -35,7 +35,6 @@ jobs:
     steps:
       - attach_workspace:
           at: ~/
-      - checkout
       - run:
           name: Login to Dockerhub
           command: echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
@@ -59,7 +58,6 @@ jobs:
     steps:
       - attach_workspace:
           at: ~/
-      - checkout
       - run:
           name: Login to Dockerhub
           command: echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
