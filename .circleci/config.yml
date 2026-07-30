@@ -29,13 +29,10 @@ jobs:
             - flexo-mms-sso-auth-service/build
 
   deploy_snapshot:
-    executor:
-      name: docker/docker
+    machine:
+      image: ubuntu-2204:2022.04.2
     working_directory: /home/circleci/flexo-mms-sso-auth-service
     steps:
-      - setup_remote_docker:
-          docker_layer_caching: true
-          version: 20.10.18
       - attach_workspace:
           at: ~/
       - checkout
@@ -56,13 +53,10 @@ jobs:
               --push .
 
   deploy_release:
-    executor:
-      name: docker/docker
+    machine:
+      image: ubuntu-2204:2022.04.2
     working_directory: /home/circleci/flexo-mms-sso-auth-service
     steps:
-      - setup_remote_docker:
-          docker_layer_caching: true
-          version: 20.10.18
       - attach_workspace:
           at: ~/
       - checkout
