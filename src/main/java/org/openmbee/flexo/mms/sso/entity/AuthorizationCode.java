@@ -47,7 +47,12 @@ public class AuthorizationCode {
 
     private String chainId;
 
-    private LocalDateTime createdAt = LocalDateTime.now();
+    private LocalDateTime createdAt;
+
+    @PrePersist
+    void onCreate() {
+        createdAt = LocalDateTime.now();
+    }
 
     public AuthorizationCode() {
     }
