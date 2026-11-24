@@ -76,6 +76,12 @@ class CimdClientResolverTest {
     void rejectsConfidentialOrDangerousDocuments() throws Exception {
         String id = serve(200, "{\"client_id\":\"SELF\",\"token_endpoint_auth_method\":\"client_secret_basic\",\"redirect_uris\":[\"http://localhost/cb\"]}", null);
         assertThatThrownBy(() -> resolver(true, List.of()).resolve(id)).hasMessageContaining("public clients");
+        stop();
+        String objectMethod = serve(200, "{\"client_id\":\"SELF\",\"token_endpoint_auth_method\":{},\"redirect_uris\":[\"http://localhost/cb\"]}", null);
+        assertThatThrownBy(() -> resolver(true, List.of()).resolve(objectMethod)).hasMessageContaining("public clients");
+        stop();
+        String mixedGrants = serve(200, "{\"client_id\":\"SELF\",\"grant_types\":[{},\"authorization_code\"],\"redirect_uris\":[\"http://localhost/cb\"]}", null);
+        assertThat(resolver(true, List.of()).resolve(mixedGrants)).isPresent();
         assertThat(CimdClientResolver.isAcceptableRedirectUri("javascript:alert(1)")).isFalse();
         assertThat(CimdClientResolver.isAcceptableRedirectUri("http://evil.example/cb")).isFalse();
         assertThat(CimdClientResolver.isAcceptableRedirectUri("https://ok.example/cb")).isTrue();

@@ -16,8 +16,8 @@ import org.openmbee.flexo.mms.sso.service.TokenSigner;
 import org.openmbee.flexo.mms.sso.service.UserService;
 import org.openmbee.flexo.mms.sso.util.UserIdExtractor;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.oauth2.jwt.BadJwtException;
@@ -43,34 +43,34 @@ public class EndpointsCompatibilityTest {
     @Autowired
     private MockMvc mockMvc;
     
-    @MockBean
+    @MockitoBean
     private ApiKeyService apiKeyService;
     
-    @MockBean
+    @MockitoBean
     private JwtDecoder jwtDecoder;
     
-    @MockBean
+    @MockitoBean
     private MainController mainController;
     
-    @MockBean
+    @MockitoBean
     private UserService userService;
 
-    @MockBean
+    @MockitoBean
     private UserIdExtractor userIdExtractor;
 
-    @MockBean
+    @MockitoBean
     private TokenSigner tokenSigner;
 
-    @MockBean
+    @MockitoBean
     private ProvisioningService provisioningService;
 
-    @MockBean
+    @MockitoBean
     private RefreshTokenService refreshTokenService;
 
-    @MockBean
+    @MockitoBean
     private OAuthClientRegistry oauthClientRegistry;
 
-    @MockBean
+    @MockitoBean
     private AuthorizationCodeService authorizationCodeService;
 
     @Test

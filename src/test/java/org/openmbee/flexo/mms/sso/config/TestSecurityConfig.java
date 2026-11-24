@@ -37,7 +37,7 @@ public class TestSecurityConfig {
         ));
     }
 
-    // note: no JwtDecoder bean here — tests @MockBean it, which replaces the
+    // note: no JwtDecoder bean here — tests @MockitoBean it, which replaces the
     // one declared by SecurityConfig (a second definition under the same bean
     // name would fail context startup with bean-definition overriding disabled)
 }

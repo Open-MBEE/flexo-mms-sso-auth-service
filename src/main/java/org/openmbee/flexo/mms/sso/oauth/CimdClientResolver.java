@@ -1,7 +1,8 @@
 package org.openmbee.flexo.mms.sso.oauth;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -197,18 +198,18 @@ public class CimdClientResolver {
         JsonNode doc;
         try {
             doc = objectMapper.readTree(body);
-        } catch (IOException e) {
+        } catch (JacksonException e) {
             throw invalidClient("client metadata document is not valid JSON");
         }
         if (doc == null || !doc.isObject()) {
             throw invalidClient("client metadata document must be a JSON object");
         }
-        if (!clientId.equals(doc.path("client_id").asText(null))) {
+        if (!clientId.equals(doc.path("client_id").asString(null))) {
             throw invalidClient("client metadata document client_id does not match its URL");
         }
 
-        String authMethod = doc.path("token_endpoint_auth_method").asText("none");
-        if (!"none".equals(authMethod)) {
+        JsonNode authMethod = doc.get("token_endpoint_auth_method");
+        if (authMethod != null && !(authMethod.isString() && "none".equals(authMethod.asString()))) {
             throw invalidClient("only public clients (token_endpoint_auth_method=none) are supported via metadata documents");
         }
         if (doc.has("client_secret") || doc.has("client_secret_expires_at")) {
@@ -223,13 +224,13 @@ public class CimdClientResolver {
             throw invalidClient("client metadata document must list redirect_uris");
         }
         for (JsonNode uri : uris) {
-            if (!uri.isTextual() || !isAcceptableRedirectUri(uri.asText())) {
+            if (!uri.isString() || !isAcceptableRedirectUri(uri.asString())) {
                 throw invalidClient("client metadata document has an invalid redirect_uri");
             }
-            redirectUris.add(uri.asText());
+            redirectUris.add(uri.asString());
         }
 
-        String name = doc.path("client_name").asText(null);
+        String name = doc.path("client_name").asString(null);
         return new OAuthClient(clientId, null, name, List.copyOf(redirectUris), false, true);
     }
 
@@ -242,7 +243,7 @@ public class CimdClientResolver {
             throw invalidClient("client metadata " + field + " must be an array");
         }
         for (JsonNode item : node) {
-            if (value.equals(item.asText())) {
+            if (item.isString() && value.equals(item.asString())) {
                 return;
             }
         }
