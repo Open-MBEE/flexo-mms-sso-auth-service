@@ -39,7 +39,7 @@ import java.util.Map;
 public class OAuthAuthorizationController {
 
     static final String PENDING_SESSION_KEY = "flexo.oauth.pending";
-    private static final long PENDING_TTL_MS = 10 * 60 * 1000;
+    private static final long PENDING_TTL_MS = 10L * 60 * 1000;
 
     private final OAuthServerProperties properties;
     private final OAuthClientRegistry clientRegistry;
