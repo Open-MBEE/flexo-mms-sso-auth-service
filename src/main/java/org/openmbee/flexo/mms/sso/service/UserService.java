@@ -105,7 +105,24 @@ public class UserService {
         if (claimGroups instanceof List<?> list) {
             list.forEach(g -> groups.add(String.valueOf(g)));
         }
-        return saveOrUpdateUser(userId, oidcUser.getFullName(), oidcUser.getEmail(), groups);
+        User user = saveOrUpdateUser(userId, oidcUser.getFullName(), oidcUser.getEmail(), groups);
+        // the claim is authoritative when present, so an emptied group list clears stored groups
+        if (claimGroups instanceof List<?> && groups.isEmpty() && user.getGroups() != null && !user.getGroups().isEmpty()) {
+            user.setGroups(new ArrayList<>());
+            user = userRepository.save(user);
+        }
+        return user;
+    }
+
+    /**
+     * Groups stored for a user, without falling back to the current request's SSO session.
+     */
+    @Transactional(readOnly = true)
+    public List<String> getStoredGroups(String userId) {
+        return userRepository.findByUserId(userId)
+                .map(User::getGroups)
+                .map(groups -> (List<String>) new ArrayList<>(groups))
+                .orElseGet(ArrayList::new);
     }
 
     /**

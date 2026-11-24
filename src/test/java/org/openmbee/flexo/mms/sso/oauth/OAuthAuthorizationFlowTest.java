@@ -169,6 +169,8 @@ class OAuthAuthorizationFlowTest {
         exchangeCode(code, "trusted-public", redirect, "x".repeat(43))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("invalid_grant"));
+        // a failed attempt does not consume the code
+        exchangeCode(code, "trusted-public", redirect, VERIFIER).andExpect(status().isOk());
 
         String code2 = authorizeAndGetCallback("trusted-public", redirect, "carol").get("code");
         exchangeCode(code2, "trusted-public", "http://127.0.0.1/other", VERIFIER)

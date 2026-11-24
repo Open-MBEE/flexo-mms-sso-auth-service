@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.function.Consumer;
 
 @Service
 public class AuthorizationCodeService {
@@ -41,16 +42,17 @@ public class AuthorizationCodeService {
     }
 
     /**
-     * Redeems a code exactly once. A replayed code revokes the refresh chain issued from it
-     * (RFC 6749 section 4.1.2).
+     * Redeems a code exactly once, after {@code checks} (client, redirect, PKCE) pass.
+     * A replayed code revokes the refresh chain issued from it (RFC 6749 section 4.1.2).
      */
     @Transactional(noRollbackFor = OAuthException.class)
-    public AuthorizationCode redeem(String code) {
+    public AuthorizationCode redeem(String code, Consumer<AuthorizationCode> checks) {
         if (code == null || code.isBlank()) {
             throw OAuthException.invalidRequest("code is required");
         }
         AuthorizationCode stored = repository.findByCodeHash(TokenHashing.sha256(code))
                 .orElseThrow(() -> OAuthException.invalidGrant("invalid authorization code"));
+        checks.accept(stored);
 
         if (repository.markUsed(stored.getId()) == 0) {
             if (stored.getChainId() != null) {
