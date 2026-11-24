@@ -30,6 +30,7 @@ class CimdClientResolverTest {
         props.getCimd().setAllowPrivateAddresses(dev);
         props.getCimd().setAllowedHosts(allowedHosts);
         props.getCimd().setMaxBytes(512);
+        props.getCimd().setTimeout(1000);
         return new CimdClientResolver(props);
     }
 
@@ -85,6 +86,27 @@ class CimdClientResolverTest {
     void rejectsOversizedDocuments() throws Exception {
         String id = serve(200, "{\"client_id\":\"SELF\",\"pad\":\"" + "x".repeat(600) + "\"}", null);
         assertThatThrownBy(() -> resolver(true, List.of()).resolve(id)).hasMessageContaining("exceeds");
+    }
+
+    @Test
+    void enforcesDeadlineOnSlowBodies() throws Exception {
+        server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/client", exchange -> {
+            exchange.sendResponseHeaders(200, 100);
+            exchange.getResponseBody().write('{');
+            exchange.getResponseBody().flush();
+            try {
+                Thread.sleep(3000);
+            } catch (InterruptedException ignored) {
+                Thread.currentThread().interrupt();
+            }
+            exchange.close();
+        });
+        server.start();
+        CimdClientResolver resolver = resolver(true, List.of());
+        long start = System.currentTimeMillis();
+        assertThatThrownBy(() -> resolver.resolve(url())).hasMessageContaining("in time");
+        assertThat(System.currentTimeMillis() - start).isLessThan(2500);
     }
 
     @Test

@@ -7,8 +7,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.URI;
@@ -16,13 +16,20 @@ import java.net.UnknownHostException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Flow;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -74,34 +81,37 @@ public class CimdClientResolver {
         URI uri = validateClientIdUrl(clientId);
         checkAddresses(uri.getHost());
 
-        HttpResponse<InputStream> response;
+        HttpRequest request = HttpRequest.newBuilder(uri)
+                .timeout(Duration.ofMillis(config.getTimeout()))
+                .header("Accept", "application/json")
+                .GET()
+                .build();
+        // the deadline covers the whole exchange, including a slowly streamed body
+        CompletableFuture<HttpResponse<byte[]>> future = httpClient.sendAsync(request,
+                info -> info.statusCode() == 200
+                        ? new LimitedBodySubscriber(config.getMaxBytes())
+                        : HttpResponse.BodySubscribers.replacing(new byte[0]));
+        HttpResponse<byte[]> response;
         try {
-            HttpRequest request = HttpRequest.newBuilder(uri)
-                    .timeout(Duration.ofMillis(config.getTimeout()))
-                    .header("Accept", "application/json")
-                    .GET()
-                    .build();
-            response = httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
-        } catch (IOException e) {
-            log.debug("CIMD fetch failed for {}: {}", clientId, e.getMessage());
+            response = future.get(config.getTimeout(), TimeUnit.MILLISECONDS);
+        } catch (TimeoutException e) {
+            future.cancel(true);
+            throw invalidClient("client metadata document could not be fetched in time");
+        } catch (ExecutionException e) {
+            if (e.getCause() instanceof BodyTooLargeException) {
+                throw invalidClient("client metadata document exceeds " + config.getMaxBytes() + " bytes");
+            }
+            log.debug("CIMD fetch failed for {}: {}", clientId, String.valueOf(e.getCause()));
             throw invalidClient("client metadata document could not be fetched");
         } catch (InterruptedException e) {
+            future.cancel(true);
             Thread.currentThread().interrupt();
             throw invalidClient("client metadata document could not be fetched");
         }
-
-        byte[] body;
-        try (InputStream in = response.body()) {
-            if (response.statusCode() != 200) {
-                throw invalidClient("client metadata document returned HTTP " + response.statusCode());
-            }
-            body = in.readNBytes(config.getMaxBytes() + 1);
-        } catch (IOException e) {
-            throw invalidClient("client metadata document could not be read");
+        if (response.statusCode() != 200) {
+            throw invalidClient("client metadata document returned HTTP " + response.statusCode());
         }
-        if (body.length > config.getMaxBytes()) {
-            throw invalidClient("client metadata document exceeds " + config.getMaxBytes() + " bytes");
-        }
+        byte[] body = response.body();
 
         OAuthClient client = parse(clientId, body);
 
@@ -279,5 +289,58 @@ public class CimdClientResolver {
 
     private static OAuthException invalidClient(String description) {
         return new OAuthException(HttpStatus.BAD_REQUEST, "invalid_client", description);
+    }
+
+    private static final class BodyTooLargeException extends IOException {
+        BodyTooLargeException() {
+            super("body too large");
+        }
+    }
+
+    /** Collects a response body, failing as soon as it exceeds {@code maxBytes}. */
+    private static final class LimitedBodySubscriber implements HttpResponse.BodySubscriber<byte[]> {
+        private final int maxBytes;
+        private final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        private final CompletableFuture<byte[]> result = new CompletableFuture<>();
+        private Flow.Subscription subscription;
+
+        LimitedBodySubscriber(int maxBytes) {
+            this.maxBytes = maxBytes;
+        }
+
+        @Override
+        public CompletionStage<byte[]> getBody() {
+            return result;
+        }
+
+        @Override
+        public void onSubscribe(Flow.Subscription subscription) {
+            this.subscription = subscription;
+            subscription.request(Long.MAX_VALUE);
+        }
+
+        @Override
+        public void onNext(List<ByteBuffer> items) {
+            for (ByteBuffer item : items) {
+                if (buffer.size() + item.remaining() > maxBytes) {
+                    subscription.cancel();
+                    result.completeExceptionally(new BodyTooLargeException());
+                    return;
+                }
+                byte[] chunk = new byte[item.remaining()];
+                item.get(chunk);
+                buffer.write(chunk, 0, chunk.length);
+            }
+        }
+
+        @Override
+        public void onError(Throwable throwable) {
+            result.completeExceptionally(throwable);
+        }
+
+        @Override
+        public void onComplete() {
+            result.complete(buffer.toByteArray());
+        }
     }
 }
