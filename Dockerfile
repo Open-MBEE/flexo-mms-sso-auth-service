@@ -1,4 +1,4 @@
-FROM gradle:7.6-jdk17 as builder
+FROM gradle:9.0.0-jdk17 AS builder
 WORKDIR /app
 COPY . .
 RUN gradle build -x test --no-daemon
