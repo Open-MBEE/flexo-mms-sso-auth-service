@@ -182,7 +182,11 @@ public class OAuthAuthorizationController {
         if (requested.size() > 1) {
             throw new OAuthException(HttpStatus.BAD_REQUEST, "invalid_target", "exactly one resource may be requested");
         }
-        String resource = OAuthServerProperties.stripTrailingSlash(requested.get(0));
+        String exact = requested.get(0);
+        if (allowed.contains(exact)) {
+            return exact;
+        }
+        String resource = OAuthServerProperties.stripTrailingSlash(exact);
         // the configured spelling becomes the token audience
         return allowed.stream()
                 .filter(r -> OAuthServerProperties.stripTrailingSlash(r).equals(resource))
