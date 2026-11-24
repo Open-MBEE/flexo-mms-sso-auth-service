@@ -95,14 +95,30 @@ public class TokenSigner {
      * Mint a layer1-compatible JWT with the standard claim contract.
      */
     public String sign(String username, List<String> groups, long durationMs) {
+        return sign(username, groups, durationMs, List.of(), null);
+    }
+
+    /**
+     * Mint a layer1-compatible JWT that additionally names extra audiences (e.g. an MCP resource)
+     * and the OAuth client it was issued to. The layer1 audience is always included.
+     */
+    public String sign(String username, List<String> groups, long durationMs,
+                       List<String> extraAudiences, String clientId) {
+        java.util.LinkedHashSet<String> audiences = new java.util.LinkedHashSet<>();
+        audiences.add(audience);
+        audiences.addAll(extraAudiences);
+
         JWTCreator.Builder builder = JWT.create()
-                .withAudience(audience)
+                .withAudience(audiences.toArray(new String[0]))
                 .withIssuer(issuer)
                 .withClaim("username", username)
                 .withClaim("groups", groups)
                 .withIssuedAt(new Date())
                 .withExpiresAt(new Date(System.currentTimeMillis() + durationMs));
 
+        if (clientId != null) {
+            builder.withClaim("client_id", clientId);
+        }
         if (keyId != null) {
             builder.withKeyId(keyId);
         }

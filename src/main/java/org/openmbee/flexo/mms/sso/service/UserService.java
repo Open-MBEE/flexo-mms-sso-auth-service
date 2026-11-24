@@ -95,6 +95,20 @@ public class UserService {
     }
     
     /**
+     * Persist the logged-in SSO user (name, email, groups from claims) and return the stored record.
+     */
+    @Transactional
+    public User syncOidcUser(OidcUser oidcUser) {
+        String userId = userIdExtractor.extractUserIdFromOidcUser(oidcUser);
+        List<String> groups = new ArrayList<>();
+        Object claimGroups = oidcUser.getClaims().get(groupClaimsField);
+        if (claimGroups instanceof List<?> list) {
+            list.forEach(g -> groups.add(String.valueOf(g)));
+        }
+        return saveOrUpdateUser(userId, oidcUser.getFullName(), oidcUser.getEmail(), groups);
+    }
+
+    /**
      * Get user groups from database or SSO claims if not in database
      * 
      * @param username The username of the user

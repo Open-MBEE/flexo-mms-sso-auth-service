@@ -59,6 +59,38 @@ flexo:
       super_admins_group_id: ${FLEXO_PROVISIONING_SUPER_ADMINS_GROUP_ID:super_admins}
       # role tier -> layer1 Role names; tiers ';'-separated, tier:roles ':'-separated (see ProvisioningService)
       # role_map: "admin:AdminOrg ...;contributor:...;reader:..."
+    # OAuth 2.1 authorization server for MCP clients (authorization code + PKCE); see README
+    oauth:
+      enabled: ${FLEXO_OAUTH_ENABLED:true}
+      # public URL of this service incl. context path (e.g. https://example.org/sso); derived from requests if empty
+      issuer: ${FLEXO_OAUTH_ISSUER:}
+      # comma-separated MCP server URLs tokens may be issued for (must match the MCP's resource URL)
+      resources: ${FLEXO_OAUTH_RESOURCES:}
+      # comma-separated scopes to advertise/accept; empty accepts any
+      scopes: ${FLEXO_OAUTH_SCOPES:}
+      access_duration: ${FLEXO_OAUTH_ACCESS_DURATION:3600000}
+      # rotation window per refresh token (1 day) and hard cap per login (7 days)
+      refresh_duration: ${FLEXO_OAUTH_REFRESH_DURATION:86400000}
+      refresh_absolute_duration: ${FLEXO_OAUTH_REFRESH_ABSOLUTE_DURATION:604800000}
+      code_duration: ${FLEXO_OAUTH_CODE_DURATION:60000}
+      always_consent: ${FLEXO_OAUTH_ALWAYS_CONSENT:false}
+      # known clients; secrets use Spring Security encoding, e.g. "{bcrypt}$2a$..." (omit for public clients)
+      # clients:
+      #   - client_id: my-mcp-client
+      #     client_secret: "{bcrypt}..."
+      #     name: My MCP Client
+      #     redirect_uris: [ "http://localhost/callback" ]
+      #     trusted: true
+      cimd:
+        # accept https client_id URLs pointing at Client ID Metadata Documents
+        enabled: ${FLEXO_OAUTH_CIMD_ENABLED:false}
+        # optional comma-separated host allow-list; "*.example.com" matches subdomains
+        allowed_hosts: ${FLEXO_OAUTH_CIMD_ALLOWED_HOSTS:}
+        allow_http: ${FLEXO_OAUTH_CIMD_ALLOW_HTTP:false}
+        allow_private_addresses: ${FLEXO_OAUTH_CIMD_ALLOW_PRIVATE_ADDRESSES:false}
+        max_bytes: ${FLEXO_OAUTH_CIMD_MAX_BYTES:5120}
+        timeout: ${FLEXO_OAUTH_CIMD_TIMEOUT:5000}
+        cache_ttl: ${FLEXO_OAUTH_CIMD_CACHE_TTL:300000}
 
 jwt:
   domain: ${JWT_DOMAIN:https://localhost:8080}

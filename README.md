@@ -193,6 +193,30 @@ A user in IdP group `flexo-acme-admin` gets org `acme` created (if absent) with 
 
 Set `jwt.algorithm: RS256` (and provide `jwt.rsa.private_key` as PKCS#8 PEM) to sign tokens asymmetrically. The public key is served at `/.well-known/jwks.json` for layer1 to verify against, removing the need for a shared HMAC secret. Default remains HS256 for backward compatibility.
 
+### MCP OAuth (Authorization Server)
+
+The service acts as an OAuth 2.1 authorization server for [MCP](https://modelcontextprotocol.io) clients, so each user signs in with the configured SSO and the MCP client receives a layer1-compatible JWT (same `iss`, `username` and `groups` claims as `/login`). The MCP server forwards that token to layer1 unchanged.
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /.well-known/oauth-authorization-server` (also `/.well-known/openid-configuration`) | RFC 8414 metadata |
+| `GET /oauth/authorize` | Authorization code + PKCE (S256 only); logs in via SSO, then shows a consent page unless the client is `trusted` |
+| `POST /token` `grant_type=authorization_code` | Redeems a code for an access token and a rotating refresh token |
+| `POST /token` `grant_type=refresh_token` | Rotates the refresh token; OAuth chains may only be refreshed by the client they were issued to |
+| `POST /oauth/revoke` | RFC 7009 revocation of a refresh token (revokes its whole chain) |
+
+Access tokens carry `aud: [<jwt.audience>, <MCP resource>]` and a `client_id` claim; layer1 accepts them because its audience is included. Use RS256 so the MCP server and layer1 can verify tokens via `/.well-known/jwks.json` without sharing a secret.
+
+Configuration (`flexo.sso-auth-service.oauth.*`, see `application.yml`):
+
+- `issuer` / `FLEXO_OAUTH_ISSUER`: public URL of this service including the context path, e.g. `https://example.org/sso`.
+- `resources` / `FLEXO_OAUTH_RESOURCES`: comma-separated MCP server URLs (RFC 8707 `resource`) tokens may be issued for, e.g. `https://example.org/mcp`.
+- `clients`: known clients with `client_id`, optional `client_secret` (Spring Security encoded, e.g. `{bcrypt}...`), `name`, `redirect_uris` (exact match; loopback `http` URIs may use any port) and `trusted` (skip consent). Via environment: `FLEXO_SSOAUTHSERVICE_OAUTH_CLIENTS_0_CLIENTID`, `..._CLIENTS_0_REDIRECTURIS`, etc.
+- `cimd.enabled` / `FLEXO_OAUTH_CIMD_ENABLED`: accept [Client ID Metadata Documents](https://datatracker.ietf.org/doc/draft-ietf-oauth-client-id-metadata-document/) (an `https` URL as `client_id`). Documents are fetched without redirects, size- and time-limited, cached, and rejected if the host resolves to a private address. `cimd.allowed_hosts` optionally restricts which hosts may serve them. Such clients are public and always see the consent page.
+- `access_duration`, `refresh_duration`, `refresh_absolute_duration`, `code_duration`: lifetimes in milliseconds.
+
+Dynamic client registration is not supported.
+
 ## Advanced Configuration
 
 ### Custom Context Path
