@@ -7,7 +7,9 @@ import org.openmbee.flexo.mms.sso.config.SecurityConfig;
 import org.openmbee.flexo.mms.sso.config.TestSecurityConfig;
 import org.openmbee.flexo.mms.sso.controller.MainController;
 import org.openmbee.flexo.mms.sso.entity.ApiKey;
+import org.openmbee.flexo.mms.sso.oauth.OAuthClientRegistry;
 import org.openmbee.flexo.mms.sso.service.ApiKeyService;
+import org.openmbee.flexo.mms.sso.service.AuthorizationCodeService;
 import org.openmbee.flexo.mms.sso.service.ProvisioningService;
 import org.openmbee.flexo.mms.sso.service.RefreshTokenService;
 import org.openmbee.flexo.mms.sso.service.TokenSigner;
@@ -64,6 +66,12 @@ public class EndpointsCompatibilityTest {
 
     @MockBean
     private RefreshTokenService refreshTokenService;
+
+    @MockBean
+    private OAuthClientRegistry oauthClientRegistry;
+
+    @MockBean
+    private AuthorizationCodeService authorizationCodeService;
 
     @Test
     public void testIndexEndpoint() throws Exception {

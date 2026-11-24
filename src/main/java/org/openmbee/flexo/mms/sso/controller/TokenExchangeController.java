@@ -1,5 +1,13 @@
 package org.openmbee.flexo.mms.sso.controller;
 
+import org.openmbee.flexo.mms.sso.entity.AuthorizationCode;
+import org.openmbee.flexo.mms.sso.entity.RefreshToken;
+import org.openmbee.flexo.mms.sso.oauth.OAuthClient;
+import org.openmbee.flexo.mms.sso.oauth.OAuthClientRegistry;
+import org.openmbee.flexo.mms.sso.oauth.OAuthException;
+import org.openmbee.flexo.mms.sso.oauth.OAuthServerProperties;
+import org.openmbee.flexo.mms.sso.oauth.TokenHashing;
+import org.openmbee.flexo.mms.sso.service.AuthorizationCodeService;
 import org.openmbee.flexo.mms.sso.service.ProvisioningService;
 import org.openmbee.flexo.mms.sso.service.RefreshTokenService;
 import org.openmbee.flexo.mms.sso.service.TokenSigner;
@@ -16,6 +24,7 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtDecoders;
 import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -23,6 +32,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * RFC 8693-shaped token endpoint enabling direct IdP-token to layer1-token exchange
@@ -38,7 +48,14 @@ import java.util.Map;
  *     grant_type=refresh_token
  *     refresh_token=...
  *
- * Both grants respond with:
+ *   POST /token  (OAuth 2.1 authorization code + PKCE, used by MCP clients)
+ *     grant_type=authorization_code
+ *     code=...&amp;redirect_uri=...&amp;code_verifier=...&amp;client_id=...
+ *
+ *   POST /oauth/revoke  (RFC 7009)
+ *     token=&lt;refresh token&gt;
+ *
+ * All grants respond with:
  *   { access_token, issued_token_type, token_type, expires_in, refresh_token }
  */
 @RestController
@@ -48,6 +65,7 @@ public class TokenExchangeController {
 
     private static final String GRANT_TOKEN_EXCHANGE = "urn:ietf:params:oauth:grant-type:token-exchange";
     private static final String GRANT_REFRESH_TOKEN = "refresh_token";
+    private static final String GRANT_AUTHORIZATION_CODE = "authorization_code";
     private static final String TOKEN_TYPE_JWT = "urn:ietf:params:oauth:token-type:jwt";
 
     private final TokenSigner tokenSigner;
@@ -55,6 +73,9 @@ public class TokenExchangeController {
     private final ProvisioningService provisioningService;
     private final UserService userService;
     private final UserIdExtractor userIdExtractor;
+    private final OAuthServerProperties oauthProperties;
+    private final OAuthClientRegistry clientRegistry;
+    private final AuthorizationCodeService codeService;
 
     /** Issuer whose tokens are accepted as subject_token; defaults to the configured OIDC login provider. */
     @Value("${flexo.sso-auth-service.idp_issuer_uri:${spring.security.oauth2.client.provider.oidc.issuer-uri:}}")
@@ -77,7 +98,13 @@ public class TokenExchangeController {
                                    RefreshTokenService refreshTokenService,
                                    ProvisioningService provisioningService,
                                    UserService userService,
-                                   UserIdExtractor userIdExtractor) {
+                                   UserIdExtractor userIdExtractor,
+                                   OAuthServerProperties oauthProperties,
+                                   OAuthClientRegistry clientRegistry,
+                                   AuthorizationCodeService codeService) {
+        this.oauthProperties = oauthProperties;
+        this.clientRegistry = clientRegistry;
+        this.codeService = codeService;
         this.tokenSigner = tokenSigner;
         this.refreshTokenService = refreshTokenService;
         this.provisioningService = provisioningService;
@@ -86,17 +113,76 @@ public class TokenExchangeController {
     }
 
     @PostMapping(value = "/token", consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
-    public ResponseEntity<Map<String, Object>> token(@RequestParam Map<String, String> form) {
+    public ResponseEntity<Map<String, Object>> token(@RequestParam Map<String, String> form,
+                                                     @RequestHeader(value = "Authorization", required = false) String authorization) {
         String grantType = form.get("grant_type");
 
-        if (GRANT_TOKEN_EXCHANGE.equals(grantType)) {
-            return exchange(form);
-        } else if (GRANT_REFRESH_TOKEN.equals(grantType)) {
-            return refresh(form);
+        try {
+            if (GRANT_TOKEN_EXCHANGE.equals(grantType)) {
+                return exchange(form);
+            } else if (GRANT_REFRESH_TOKEN.equals(grantType)) {
+                return refresh(form, authorization);
+            } else if (GRANT_AUTHORIZATION_CODE.equals(grantType) && oauthProperties.isEnabled()) {
+                return authorizationCode(form, authorization);
+            }
+        } catch (OAuthException e) {
+            return oauthError(e, authorization);
         }
 
         return oauthError(HttpStatus.BAD_REQUEST, "unsupported_grant_type",
-                "grant_type must be '" + GRANT_TOKEN_EXCHANGE + "' or '" + GRANT_REFRESH_TOKEN + "'");
+                "grant_type must be '" + GRANT_TOKEN_EXCHANGE + "', '" + GRANT_REFRESH_TOKEN
+                        + "' or '" + GRANT_AUTHORIZATION_CODE + "'");
+    }
+
+    @PostMapping(value = "/oauth/revoke", consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
+    public ResponseEntity<Map<String, Object>> revoke(@RequestParam Map<String, String> form,
+                                                      @RequestHeader(value = "Authorization", required = false) String authorization) {
+        if (!oauthProperties.isEnabled()) {
+            return ResponseEntity.notFound().build();
+        }
+        try {
+            OAuthClient client = clientRegistry.authenticate(authorization, form);
+            String token = form.get("token");
+            if (token == null || token.isBlank()) {
+                throw OAuthException.invalidRequest("token is required");
+            }
+            // only refresh tokens are revocable; unknown tokens still return 200 (RFC 7009 section 2.2)
+            refreshTokenService.lookup(token)
+                    .filter(rt -> client.clientId().equals(rt.getClientId()))
+                    .ifPresent(rt -> refreshTokenService.revokeChain(rt.getChainId()));
+            return ResponseEntity.ok().headers(noStore()).build();
+        } catch (OAuthException e) {
+            return oauthError(e, authorization);
+        }
+    }
+
+    private ResponseEntity<Map<String, Object>> authorizationCode(Map<String, String> form, String authorization) {
+        OAuthClient client = clientRegistry.authenticate(authorization, form);
+        String resource = form.get("resource");
+        AuthorizationCode code = codeService.redeem(form.get("code"), c -> {
+            if (!c.getClientId().equals(client.clientId())) {
+                throw OAuthException.invalidGrant("authorization code was issued to another client");
+            }
+            if (!c.getRedirectUri().equals(form.get("redirect_uri"))) {
+                throw OAuthException.invalidGrant("redirect_uri does not match the authorization request");
+            }
+            if (!TokenHashing.verifyPkce(form.get("code_verifier"), c.getCodeChallenge())) {
+                throw OAuthException.invalidGrant("PKCE verification failed");
+            }
+            if (resource != null && !OAuthServerProperties.stripTrailingSlash(resource)
+                    .equals(OAuthServerProperties.stripTrailingSlash(c.getResource()))) {
+                throw new OAuthException(HttpStatus.BAD_REQUEST, "invalid_target", "resource does not match the authorization request");
+            }
+        });
+
+        String userId = code.getUserId();
+        List<String> groups = userService.getStoredGroups(userId);
+        RefreshTokenService.IssuedRefreshToken refreshToken = refreshTokenService.issue(userId, client.clientId(),
+                code.getResource(), oauthProperties.getRefreshDuration(), oauthProperties.getRefreshAbsoluteDuration());
+        codeService.recordChain(code, refreshToken.entity().getChainId());
+
+        log.info("issued OAuth tokens to client '{}' for user '{}'", client.clientId(), userId);
+        return issue(userId, groups, refreshToken, code.getScope());
     }
 
     private ResponseEntity<Map<String, Object>> exchange(Map<String, String> form) {
@@ -133,10 +219,20 @@ public class TokenExchangeController {
         return issue(userId, groups);
     }
 
-    private ResponseEntity<Map<String, Object>> refresh(Map<String, String> form) {
+    private ResponseEntity<Map<String, Object>> refresh(Map<String, String> form, String authorization) {
         String refreshToken = form.get("refresh_token");
         if (refreshToken == null || refreshToken.isBlank()) {
             return oauthError(HttpStatus.BAD_REQUEST, "invalid_request", "refresh_token is required");
+        }
+
+        // chains issued to an OAuth client may only be refreshed by that client
+        Optional<RefreshToken> presented = refreshTokenService.lookup(refreshToken);
+        String boundClient = presented.map(RefreshToken::getClientId).orElse(null);
+        if (boundClient != null) {
+            OAuthClient client = clientRegistry.authenticate(authorization, form);
+            if (!boundClient.equals(client.clientId())) {
+                throw OAuthException.invalidGrant("refresh token was issued to another client");
+            }
         }
 
         RefreshTokenService.IssuedRefreshToken rotated;
@@ -149,30 +245,46 @@ public class TokenExchangeController {
         String userId = rotated.entity().getUserId();
 
         // re-read groups from the user record so IdP membership changes propagate at refresh time
-        List<String> groups = userService.getUserGroups(userId);
+        List<String> groups = boundClient != null ? userService.getStoredGroups(userId) : userService.getUserGroups(userId);
 
-        return issue(userId, groups, rotated);
+        return issue(userId, groups, rotated, null);
     }
 
     private ResponseEntity<Map<String, Object>> issue(String userId, List<String> groups) {
-        return issue(userId, groups, refreshTokenService.issue(userId));
+        return issue(userId, groups, refreshTokenService.issue(userId), null);
     }
 
     private ResponseEntity<Map<String, Object>> issue(String userId, List<String> groups,
-                                                      RefreshTokenService.IssuedRefreshToken refreshToken) {
+                                                      RefreshTokenService.IssuedRefreshToken refreshToken, String scope) {
         // ensure orgs/groups/policies exist in layer1 for any org-encoding groups (no-op if disabled)
         provisioningService.provisionForGroups(groups);
 
-        String accessToken = tokenSigner.sign(userId, groups, accessDurationMs);
+        RefreshToken chain = refreshToken.entity();
+        boolean oauthChain = chain.getClientId() != null;
+        long durationMs = oauthChain ? oauthProperties.getAccessDuration() : accessDurationMs;
+        String accessToken = oauthChain
+                ? tokenSigner.sign(userId, groups, durationMs,
+                        chain.getResource() != null ? List.of(chain.getResource()) : List.of(), chain.getClientId())
+                : tokenSigner.sign(userId, groups, durationMs);
 
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("access_token", accessToken);
         body.put("issued_token_type", TOKEN_TYPE_JWT);
         body.put("token_type", "Bearer");
-        body.put("expires_in", accessDurationMs / 1000);
+        body.put("expires_in", durationMs / 1000);
         body.put("refresh_token", refreshToken.value());
+        if (scope != null) {
+            body.put("scope", scope);
+        }
 
-        return ResponseEntity.ok(body);
+        return ResponseEntity.ok().headers(noStore()).body(body);
+    }
+
+    private static org.springframework.http.HttpHeaders noStore() {
+        org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+        headers.setCacheControl("no-store");
+        headers.setPragma("no-cache");
+        return headers;
     }
 
     private List<String> extractGroups(Jwt jwt) {
@@ -202,10 +314,21 @@ public class TokenExchangeController {
         return decoder;
     }
 
+    private static ResponseEntity<Map<String, Object>> oauthError(OAuthException e, String authorization) {
+        ResponseEntity<Map<String, Object>> response = oauthError(e.getStatus(), e.getError(), e.getMessage());
+        if (e.getStatus() == HttpStatus.UNAUTHORIZED && authorization != null
+                && authorization.regionMatches(true, 0, "Basic ", 0, 6)) {
+            return ResponseEntity.status(e.getStatus())
+                    .header("WWW-Authenticate", "Basic realm=\"oauth\"")
+                    .body(response.getBody());
+        }
+        return response;
+    }
+
     private static ResponseEntity<Map<String, Object>> oauthError(HttpStatus status, String error, String description) {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("error", error);
         body.put("error_description", description);
-        return ResponseEntity.status(status).body(body);
+        return ResponseEntity.status(status).headers(noStore()).body(body);
     }
 }

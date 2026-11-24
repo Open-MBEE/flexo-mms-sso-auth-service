@@ -43,6 +43,17 @@ public class RefreshToken {
 
     private LocalDateTime createdAt;
 
+    /** OAuth client the chain was issued to; null for token-exchange chains. */
+    @Column(length = 2048)
+    private String clientId;
+
+    /** Protected resource (RFC 8707) the chain's access tokens are issued for. */
+    @Column(length = 2048)
+    private String resource;
+
+    /** Per-chain rotation window; null uses jwt.refresh_duration. */
+    private Long rotationWindowMs;
+
     public RefreshToken() {
         this.createdAt = LocalDateTime.now();
     }
@@ -124,6 +135,30 @@ public class RefreshToken {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public String getClientId() {
+        return clientId;
+    }
+
+    public void setClientId(String clientId) {
+        this.clientId = clientId;
+    }
+
+    public String getResource() {
+        return resource;
+    }
+
+    public void setResource(String resource) {
+        this.resource = resource;
+    }
+
+    public Long getRotationWindowMs() {
+        return rotationWindowMs;
+    }
+
+    public void setRotationWindowMs(Long rotationWindowMs) {
+        this.rotationWindowMs = rotationWindowMs;
     }
 
     @Override

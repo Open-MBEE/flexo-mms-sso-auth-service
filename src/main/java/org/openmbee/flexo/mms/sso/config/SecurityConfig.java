@@ -18,6 +18,8 @@ import org.springframework.security.oauth2.client.registration.ClientRegistratio
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtDecoders;
+import org.springframework.security.oauth2.jwt.JwtException;
+import org.springframework.util.function.SingletonSupplier;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
@@ -97,7 +99,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authorize -> authorize
                         // /token authenticates via its grant (subject_token or refresh_token);
                         // /.well-known/jwks.json must be publicly readable by verifiers (layer1)
-                        .requestMatchers("/", "/public/**", "/actuator/health", "/check", "/token", "/.well-known/**").permitAll()
+                        .requestMatchers("/", "/public/**", "/actuator/health", "/check", "/token", "/oauth/revoke",
+                                "/.well-known/**", "/error").permitAll()
                         .anyRequest().authenticated()
                 )
                 .oauth2Login(oauth2 -> oauth2
@@ -109,7 +112,7 @@ public class SecurityConfig {
                         .clearAuthentication(true)
                         .deleteCookies("JSESSIONID")
                 )
-                .csrf(csrf -> csrf.ignoringRequestMatchers("/keys/generate", "/keys/revoke/**", "/token"));  // Allow POST requests to these endpoints
+                .csrf(csrf -> csrf.ignoringRequestMatchers("/keys/generate", "/keys/revoke/**", "/token", "/oauth/revoke"));  // Allow POST requests to these endpoints
 
         return http.build();
     }
@@ -123,6 +126,14 @@ public class SecurityConfig {
 
     @Bean
     JwtDecoder jwtDecoder() {
-        return JwtDecoders.fromIssuerLocation(issuerUri);
+        // resolved on first use so the issuer may be this service itself (not yet serving at startup)
+        SingletonSupplier<JwtDecoder> delegate = SingletonSupplier.of(() -> JwtDecoders.fromIssuerLocation(issuerUri));
+        return token -> {
+            try {
+                return delegate.obtain().decode(token);
+            } catch (IllegalArgumentException | IllegalStateException e) {
+                throw new JwtException("Unable to resolve issuer " + issuerUri, e);
+            }
+        };
     }
 }

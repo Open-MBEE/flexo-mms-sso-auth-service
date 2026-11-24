@@ -9,13 +9,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
+import org.openmbee.flexo.mms.sso.oauth.TokenHashing;
+
 import java.time.LocalDateTime;
-import java.util.Base64;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -32,7 +30,6 @@ public class RefreshTokenService {
     private static final Logger log = LoggerFactory.getLogger(RefreshTokenService.class);
 
     private final RefreshTokenRepository repository;
-    private final SecureRandom secureRandom = new SecureRandom();
 
     /** Rotation window per token (must refresh at least this often), default 1 hour. */
     @Value("${jwt.refresh_duration:3600000}")
@@ -53,9 +50,30 @@ public class RefreshTokenService {
      */
     @Transactional
     public IssuedRefreshToken issue(String userId) {
-        LocalDateTime now = LocalDateTime.now();
-        LocalDateTime absolute = now.plusNanos(refreshAbsoluteDurationMs * 1_000_000);
-        return issueInChain(userId, UUID.randomUUID().toString(), absolute);
+        return issue(userId, null, null, null, refreshAbsoluteDurationMs);
+    }
+
+    /**
+     * Start a new refresh chain bound to an OAuth client and resource.
+     */
+    @Transactional
+    public IssuedRefreshToken issue(String userId, String clientId, String resource,
+                                    Long rotationWindowMs, long absoluteDurationMs) {
+        LocalDateTime absolute = LocalDateTime.now().plusNanos(absoluteDurationMs * 1_000_000);
+        RefreshToken template = new RefreshToken();
+        template.setUserId(userId);
+        template.setChainId(UUID.randomUUID().toString());
+        template.setAbsoluteExpiresAt(absolute);
+        template.setClientId(clientId);
+        template.setResource(resource);
+        template.setRotationWindowMs(rotationWindowMs);
+        return issueInChain(template);
+    }
+
+    /** Finds a presented token without rotating it, e.g. to check client binding first. */
+    @Transactional(readOnly = true)
+    public Optional<RefreshToken> lookup(String presentedToken) {
+        return repository.findByTokenHash(TokenHashing.sha256(presentedToken));
     }
 
     /**
@@ -63,9 +81,9 @@ public class RefreshTokenService {
      *
      * @throws UnauthorizedException if the token is unknown, expired, or reused
      */
-    @Transactional
+    @Transactional(noRollbackFor = UnauthorizedException.class)
     public IssuedRefreshToken rotate(String presentedToken) {
-        RefreshToken existing = repository.findByTokenHash(hash(presentedToken))
+        RefreshToken existing = repository.findByTokenHash(TokenHashing.sha256(presentedToken))
                 .orElseThrow(() -> new UnauthorizedException("Invalid refresh token"));
 
         if (existing.isRevoked()) {
@@ -83,7 +101,7 @@ public class RefreshTokenService {
         existing.setRevoked(true);
         repository.save(existing);
 
-        return issueInChain(existing.getUserId(), existing.getChainId(), existing.getAbsoluteExpiresAt());
+        return issueInChain(existing);
     }
 
     @Transactional
@@ -98,29 +116,23 @@ public class RefreshTokenService {
         repository.deleteByAbsoluteExpiresAtBefore(LocalDateTime.now());
     }
 
-    private IssuedRefreshToken issueInChain(String userId, String chainId, LocalDateTime absoluteExpiresAt) {
-        byte[] raw = new byte[48];
-        secureRandom.nextBytes(raw);
-        String value = Base64.getUrlEncoder().withoutPadding().encodeToString(raw);
+    private IssuedRefreshToken issueInChain(RefreshToken predecessor) {
+        String value = TokenHashing.randomToken(48);
+        LocalDateTime absoluteExpiresAt = predecessor.getAbsoluteExpiresAt();
+        long window = predecessor.getRotationWindowMs() != null ? predecessor.getRotationWindowMs() : refreshDurationMs;
 
-        LocalDateTime expiresAt = LocalDateTime.now().plusNanos(refreshDurationMs * 1_000_000);
+        LocalDateTime expiresAt = LocalDateTime.now().plusNanos(window * 1_000_000);
         if (expiresAt.isAfter(absoluteExpiresAt)) {
             expiresAt = absoluteExpiresAt;
         }
 
-        RefreshToken entity = new RefreshToken(userId, hash(value), chainId, expiresAt, absoluteExpiresAt);
+        RefreshToken entity = new RefreshToken(predecessor.getUserId(), TokenHashing.sha256(value),
+                predecessor.getChainId(), expiresAt, absoluteExpiresAt);
+        entity.setClientId(predecessor.getClientId());
+        entity.setResource(predecessor.getResource());
+        entity.setRotationWindowMs(predecessor.getRotationWindowMs());
         repository.save(entity);
 
         return new IssuedRefreshToken(value, entity);
-    }
-
-    private static String hash(String value) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hashed = digest.digest(value.getBytes(StandardCharsets.UTF_8));
-            return Base64.getUrlEncoder().withoutPadding().encodeToString(hashed);
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException(e);
-        }
     }
 }
