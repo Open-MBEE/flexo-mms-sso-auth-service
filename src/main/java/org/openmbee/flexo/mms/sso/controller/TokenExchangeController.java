@@ -158,24 +158,25 @@ public class TokenExchangeController {
 
     private ResponseEntity<Map<String, Object>> authorizationCode(Map<String, String> form, String authorization) {
         OAuthClient client = clientRegistry.authenticate(authorization, form);
-        AuthorizationCode code = codeService.redeem(form.get("code"));
-
-        if (!code.getClientId().equals(client.clientId())) {
-            throw OAuthException.invalidGrant("authorization code was issued to another client");
-        }
-        if (!code.getRedirectUri().equals(form.get("redirect_uri"))) {
-            throw OAuthException.invalidGrant("redirect_uri does not match the authorization request");
-        }
-        if (!TokenHashing.verifyPkce(form.get("code_verifier"), code.getCodeChallenge())) {
-            throw OAuthException.invalidGrant("PKCE verification failed");
-        }
         String resource = form.get("resource");
-        if (resource != null && !OAuthServerProperties.stripTrailingSlash(resource).equals(code.getResource())) {
-            throw new OAuthException(HttpStatus.BAD_REQUEST, "invalid_target", "resource does not match the authorization request");
-        }
+        AuthorizationCode code = codeService.redeem(form.get("code"), c -> {
+            if (!c.getClientId().equals(client.clientId())) {
+                throw OAuthException.invalidGrant("authorization code was issued to another client");
+            }
+            if (!c.getRedirectUri().equals(form.get("redirect_uri"))) {
+                throw OAuthException.invalidGrant("redirect_uri does not match the authorization request");
+            }
+            if (!TokenHashing.verifyPkce(form.get("code_verifier"), c.getCodeChallenge())) {
+                throw OAuthException.invalidGrant("PKCE verification failed");
+            }
+            if (resource != null && !OAuthServerProperties.stripTrailingSlash(resource)
+                    .equals(OAuthServerProperties.stripTrailingSlash(c.getResource()))) {
+                throw new OAuthException(HttpStatus.BAD_REQUEST, "invalid_target", "resource does not match the authorization request");
+            }
+        });
 
         String userId = code.getUserId();
-        List<String> groups = userService.getUserGroups(userId);
+        List<String> groups = userService.getStoredGroups(userId);
         RefreshTokenService.IssuedRefreshToken refreshToken = refreshTokenService.issue(userId, client.clientId(),
                 code.getResource(), oauthProperties.getRefreshDuration(), oauthProperties.getRefreshAbsoluteDuration());
         codeService.recordChain(code, refreshToken.entity().getChainId());
@@ -244,7 +245,7 @@ public class TokenExchangeController {
         String userId = rotated.entity().getUserId();
 
         // re-read groups from the user record so IdP membership changes propagate at refresh time
-        List<String> groups = userService.getUserGroups(userId);
+        List<String> groups = boundClient != null ? userService.getStoredGroups(userId) : userService.getUserGroups(userId);
 
         return issue(userId, groups, rotated, null);
     }
