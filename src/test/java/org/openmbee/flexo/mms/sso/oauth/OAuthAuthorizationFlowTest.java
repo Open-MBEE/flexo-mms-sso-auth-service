@@ -3,8 +3,8 @@ package org.openmbee.flexo.mms.sso.oauth;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.interfaces.DecodedJWT;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
@@ -12,9 +12,9 @@ import org.openmbee.flexo.mms.sso.config.TestSecurityConfig;
 import org.openmbee.flexo.mms.sso.service.RefreshTokenService;
 import org.openmbee.flexo.mms.sso.service.TokenSigner;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpSession;
@@ -84,7 +84,7 @@ class OAuthAuthorizationFlowTest {
     @Autowired
     private RefreshTokenService refreshTokenService;
 
-    @MockBean
+    @MockitoBean
     private JwtDecoder jwtDecoder;
 
     private final ObjectMapper mapper = new ObjectMapper();
@@ -128,22 +128,22 @@ class OAuthAuthorizationFlowTest {
                 .andExpect(header().string("Cache-Control", "no-store"))
                 .andReturnJson();
 
-        DecodedJWT access = verify(tokens.get("access_token").asText());
+        DecodedJWT access = verify(tokens.get("access_token").asString());
         assertThat(access.getAudience()).containsExactly("layer1-audience", RESOURCE);
         assertThat(access.getIssuer()).isEqualTo("https://auth.test");
         assertThat(access.getClaim("username").asString()).isEqualTo("alice");
         assertThat(access.getClaim("groups").asList(String.class)).containsExactly("engineers");
         assertThat(access.getClaim("client_id").asString()).isEqualTo("trusted-public");
 
-        String refresh = tokens.get("refresh_token").asText();
+        String refresh = tokens.get("refresh_token").asString();
         JsonNode refreshed = token(Map.of("grant_type", "refresh_token", "refresh_token", refresh,
                 "client_id", "trusted-public")).andExpect(status().isOk()).andReturnJson();
-        assertThat(verify(refreshed.get("access_token").asText()).getAudience()).contains(RESOURCE);
+        assertThat(verify(refreshed.get("access_token").asString()).getAudience()).contains(RESOURCE);
 
         // reusing the rotated token revokes the whole chain
         token(Map.of("grant_type", "refresh_token", "refresh_token", refresh, "client_id", "trusted-public"))
                 .andExpect(jsonPath("$.error").value("invalid_grant"));
-        token(Map.of("grant_type", "refresh_token", "refresh_token", refreshed.get("refresh_token").asText(),
+        token(Map.of("grant_type", "refresh_token", "refresh_token", refreshed.get("refresh_token").asString(),
                 "client_id", "trusted-public"))
                 .andExpect(jsonPath("$.error").value("invalid_grant"));
     }
@@ -157,7 +157,7 @@ class OAuthAuthorizationFlowTest {
         exchangeCode(code, "trusted-public", redirect, VERIFIER)
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("invalid_grant"));
-        token(Map.of("grant_type", "refresh_token", "refresh_token", tokens.get("refresh_token").asText(),
+        token(Map.of("grant_type", "refresh_token", "refresh_token", tokens.get("refresh_token").asString(),
                 "client_id", "trusted-public"))
                 .andExpect(jsonPath("$.error").value("invalid_grant"));
     }
@@ -247,21 +247,21 @@ class OAuthAuthorizationFlowTest {
                 .andExpect(status().isOk()).andReturn());
 
         // refresh bound to the client: other/no client is rejected, the owner succeeds
-        token(Map.of("grant_type", "refresh_token", "refresh_token", tokens.get("refresh_token").asText()))
+        token(Map.of("grant_type", "refresh_token", "refresh_token", tokens.get("refresh_token").asString()))
                 .andExpect(jsonPath("$.error").value("invalid_client"));
-        token(Map.of("grant_type", "refresh_token", "refresh_token", tokens.get("refresh_token").asText(),
+        token(Map.of("grant_type", "refresh_token", "refresh_token", tokens.get("refresh_token").asString(),
                 "client_id", "trusted-public"))
                 .andExpect(jsonPath("$.error").value("invalid_grant"));
         JsonNode refreshed = json(mockMvc.perform(form(Map.of("grant_type", "refresh_token",
-                        "refresh_token", tokens.get("refresh_token").asText())).header("Authorization", basic))
+                        "refresh_token", tokens.get("refresh_token").asString())).header("Authorization", basic))
                 .andExpect(status().isOk()).andReturn());
 
         // revocation kills the chain
         mockMvc.perform(post("/oauth/revoke").contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                        .param("token", refreshed.get("refresh_token").asText()).header("Authorization", basic))
+                        .param("token", refreshed.get("refresh_token").asString()).header("Authorization", basic))
                 .andExpect(status().isOk());
         mockMvc.perform(form(Map.of("grant_type", "refresh_token",
-                        "refresh_token", refreshed.get("refresh_token").asText())).header("Authorization", basic))
+                        "refresh_token", refreshed.get("refresh_token").asString())).header("Authorization", basic))
                 .andExpect(jsonPath("$.error").value("invalid_grant"));
     }
 
@@ -287,7 +287,7 @@ class OAuthAuthorizationFlowTest {
         String refresh = refreshTokenService.issue("legacy-user").value();
         JsonNode tokens = token(Map.of("grant_type", "refresh_token", "refresh_token", refresh))
                 .andExpect(status().isOk()).andReturnJson();
-        DecodedJWT access = verify(tokens.get("access_token").asText());
+        DecodedJWT access = verify(tokens.get("access_token").asString());
         assertThat(access.getAudience()).containsExactly("layer1-audience");
         assertThat(access.getClaim("client_id").isMissing()).isTrue();
     }
