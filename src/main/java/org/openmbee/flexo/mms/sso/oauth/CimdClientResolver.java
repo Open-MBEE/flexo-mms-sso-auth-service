@@ -208,8 +208,8 @@ public class CimdClientResolver {
             throw invalidClient("client metadata document client_id does not match its URL");
         }
 
-        String authMethod = doc.path("token_endpoint_auth_method").asString("none");
-        if (!"none".equals(authMethod)) {
+        JsonNode authMethod = doc.get("token_endpoint_auth_method");
+        if (authMethod != null && !(authMethod.isString() && "none".equals(authMethod.asString()))) {
             throw invalidClient("only public clients (token_endpoint_auth_method=none) are supported via metadata documents");
         }
         if (doc.has("client_secret") || doc.has("client_secret_expires_at")) {
@@ -243,7 +243,7 @@ public class CimdClientResolver {
             throw invalidClient("client metadata " + field + " must be an array");
         }
         for (JsonNode item : node) {
-            if (value.equals(item.asString())) {
+            if (item.isString() && value.equals(item.asString())) {
                 return;
             }
         }
