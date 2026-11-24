@@ -172,7 +172,7 @@ public class OAuthAuthorizationController {
     }
 
     private String resolveResource(List<String> requested) {
-        List<String> allowed = properties.getResources().stream().map(OAuthServerProperties::stripTrailingSlash).toList();
+        List<String> allowed = properties.getResources();
         if (requested == null || requested.isEmpty()) {
             if (allowed.size() == 1) {
                 return allowed.get(0);
@@ -183,10 +183,12 @@ public class OAuthAuthorizationController {
             throw new OAuthException(HttpStatus.BAD_REQUEST, "invalid_target", "exactly one resource may be requested");
         }
         String resource = OAuthServerProperties.stripTrailingSlash(requested.get(0));
-        if (!allowed.contains(resource)) {
-            throw new OAuthException(HttpStatus.BAD_REQUEST, "invalid_target", "resource is not served by this authorization server");
-        }
-        return resource;
+        // the configured spelling becomes the token audience
+        return allowed.stream()
+                .filter(r -> OAuthServerProperties.stripTrailingSlash(r).equals(resource))
+                .findFirst()
+                .orElseThrow(() -> new OAuthException(HttpStatus.BAD_REQUEST, "invalid_target",
+                        "resource is not served by this authorization server"));
     }
 
     private String validateScope(String scope) {
